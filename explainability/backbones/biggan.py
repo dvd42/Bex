@@ -3,6 +3,7 @@ import torch.nn.functional as F
 import numpy as np
 from torch.nn.utils import spectral_norm as sn
 
+
 def get_resnet_output_size(ratio, width):
     if ratio == 32 or ratio == 16:
         output_size = 128 * width
@@ -12,6 +13,7 @@ def get_resnet_output_size(ratio, width):
         raise ValueError("Incorrect Ratio")
 
     return output_size
+
 
 class ResnetBlock(torch.nn.Module):
     def __init__(self, ni, no, stride, activation, spectral_norm=False, dp_prob=.3):
@@ -50,6 +52,7 @@ class ResnetBlock(torch.nn.Module):
             x = F.avg_pool2d(x, 2, 2)
         return x + y
 
+
 class ResnetGroup(torch.nn.Module):
     def __init__(self, n, ni, no, stride, activation, spectral_norm, dp_prob=.3):
         super().__init__()
@@ -62,6 +65,7 @@ class ResnetGroup(torch.nn.Module):
         for i in range(self.n):
             x = getattr(self, "block_%d" %i)(x)
         return x
+
 
 class Resnet(torch.nn.Module):
     def __init__(self, ratio=0, width=1, activation=F.relu, spectral_norm=False, dp_prob=.3):
@@ -154,9 +158,8 @@ class MLP(torch.nn.Module):
 
 
 class Encoder(Resnet):
-    def __init__(self, z_dim, mlp, ratio=0, width=1, dp_prob=.3, pooling_last=True, return_features=True):
+    def __init__(self, mlp, ratio=0, width=1, dp_prob=.3, pooling_last=True, return_features=True):
         super().__init__(ratio=ratio, width=width, activation=torch.nn.ReLU(True), dp_prob=dp_prob)
-        self.z_dim = z_dim
         self.bn_out = torch.nn.BatchNorm2d(self.channels[-1])
         self.pooling_last = pooling_last
         self.return_features = return_features
@@ -199,6 +202,7 @@ class Discriminator(Resnet):
         x = x.mean(3).mean(2)
         return features, self.classifier(x)
 
+
 class DiscriminatorLoss(torch.nn.Module):
     def __init__(self, discriminator):
         super().__init__()
@@ -212,6 +216,7 @@ class DiscriminatorLoss(torch.nn.Module):
             labels -= 0.1
         _, logits = self.discriminator(x)
         return F.binary_cross_entropy_with_logits(logits.view(-1), labels.view(-1))
+
 
 class InterpolateResidualGroup(torch.nn.Module):
     def __init__(self, nblocks, ni, no, z_dim, upsample=False):
@@ -229,6 +234,7 @@ class InterpolateResidualGroup(torch.nn.Module):
             x = block(x, z)
         return x
 
+
 class ConditionalBatchNorm(torch.nn.Module):
     def __init__(self, no, z_dim):
         super().__init__()
@@ -239,6 +245,7 @@ class ConditionalBatchNorm(torch.nn.Module):
     def forward(self, x, z):
         cond = self.condition(z).view(-1, 2 * self.no, 1, 1)
         return self.bn(x) * cond[:, :self.no] + cond[:, self.no:]
+
 
 class InterpolateResidualBlock(torch.nn.Module):
     def __init__(self, ni, no, z_dim, upsample=False):
@@ -270,6 +277,7 @@ class InterpolateResidualBlock(torch.nn.Module):
         else:
             x = x + shortcut
         return x
+
 
 class Decoder(torch.nn.Module):
     def __init__(self, z_dim, width, in_ch, ratio, in_h, in_w, mlp_width, mlp_depth):
@@ -314,12 +322,77 @@ class Decoder(torch.nn.Module):
         x = F.relu(self.bn_out(x), True)
         return torch.tanh(self.conv_out(x))
 
-class Autoencoder(torch.nn.Module):
+
+def weights_init(m):
+    classname = m.__class__.__name__
+    if classname.find('Conv') != -1:
+        m.weight.data.normal_(0.0, 0.02)
+    elif classname.find('BatchNorm') != -1:
+        try:
+            m.weight.data.normal_(1.0, 0.02)
+            m.bias.data.fill_(0)
+        except:
+            pass
+
+
+class OracleEncoder(torch.nn.Module):
 
     def __init__(self, exp_dict, labelset):
         super().__init__()
         self.exp_dict=exp_dict
-        # self.m = exp_dict["m"]
+        self.w = self.exp_dict["dataset"]["width"]
+        self.h = self.exp_dict["dataset"]["height"]
+
+        if min(self.w, self.h) == 128:
+            self.ratio = 32
+        elif min(self.w, self.h) == 64:
+            self.ratio = 16
+        elif min(self.w, self.h) == 32:
+            self.ratio = 8
+
+        self.channels_width = exp_dict["backbone"]["channels_width"]
+        mlp_width = self.exp_dict["backbone"]["mlp_width"]
+        mlp_depth = self.exp_dict["backbone"]["mlp_depth"]
+        n_continuous = exp_dict["dataset"]["n_continuous"]
+        mlp_heads = [n_continuous, 1072, 48]
+
+        if exp_dict["backbone"]["feature_extractor"].lower() == "resnet":
+            self.stem_feature_size = get_resnet_output_size(self.ratio, self.channels_width)
+            mlp = MultiHeadMLP(self.stem_feature_size, mlp_heads, mlp_width * self.stem_feature_size, mlp_depth)
+            self.encoder = Encoder(mlp,
+                                   ratio=self.ratio,
+                                   width=self.channels_width,
+                                   dp_prob=exp_dict["backbone"]["dp_prob"],
+                                   return_features=True,
+                                   pooling_last=True)
+
+
+        self.weights_init = weights_init
+
+        self.apply(self.weights_init)
+
+
+    def encode(self, x):
+
+        z, predictions = self.encoder(x)
+
+        pred_continuous, pred_font, pred_char = predictions
+
+        return dict(z=z, pred_continuous=pred_continuous,
+                    pred_font=pred_font, pred_char=pred_char)
+
+
+    def forward(self, x):
+
+        return self.encode(x)
+
+
+class Generator(torch.nn.Module):
+
+    def __init__(self, exp_dict, labelset):
+
+        super().__init__()
+        self.exp_dict = exp_dict
         self.z_dim = exp_dict["z_dim"]
         self.w = self.exp_dict["dataset"]["width"]
         self.h = self.exp_dict["dataset"]["height"]
@@ -333,29 +406,13 @@ class Autoencoder(torch.nn.Module):
 
         self.output_w = self.w // self.ratio
         self.output_h = self.h // self.ratio
-
         self.channels_width = exp_dict["backbone"]["channels_width"]
         mlp_width = self.exp_dict["backbone"]["mlp_width"]
         mlp_depth = self.exp_dict["backbone"]["mlp_depth"]
         n_continuous = exp_dict["dataset"]["n_continuous"]
-        mlp_heads = [n_continuous, len(labelset["font"]), len(labelset["char"])]
 
-        if exp_dict["backbone"]["feature_extractor"].lower() == "resnet":
-            self.stem_feature_size = get_resnet_output_size(self.ratio, self.channels_width)
-            mlp = MultiHeadMLP(self.stem_feature_size, mlp_heads, mlp_width * self.stem_feature_size, mlp_depth)
-            self.encoder = Encoder(self.z_dim,
-                                   mlp,
-                                   ratio=self.ratio,
-                                   width=self.channels_width,
-                                   dp_prob=exp_dict["backbone"]["dp_prob"],
-                                   return_features=True,
-                                   pooling_last=True)
-
-
-        self.output_size = self.encoder.output_size * self.output_w * self.output_h
-
-        self.char_embedding = torch.nn.Embedding(len(labelset["char"]), self.z_dim)
-        self.font_embedding = torch.nn.Embedding(len(labelset['font']), self.z_dim)
+        self.char_embedding = torch.nn.Embedding(48, self.z_dim)
+        self.font_embedding = torch.nn.Embedding(1072, self.z_dim)
 
         self.decoder = Decoder(n_continuous + self.z_dim * 2,
                                 self.channels_width,
@@ -365,30 +422,6 @@ class Autoencoder(torch.nn.Module):
                                 in_w=self.output_w,
                                 mlp_width=mlp_width,
                                 mlp_depth=mlp_depth)
-
-        def weights_init(m):
-            classname = m.__class__.__name__
-            if classname.find('Conv') != -1:
-                m.weight.data.normal_(0.0, 0.02)
-            elif classname.find('BatchNorm') != -1:
-                try:
-                    m.weight.data.normal_(1.0, 0.02)
-                    m.bias.data.fill_(0)
-                except:
-                    pass
-
-        self.weights_init = weights_init
-
-        self.apply(self.weights_init)
-
-    def encode(self, x):
-
-        z, predictions = self.encoder(x)
-
-        pred_continuous, pred_font, pred_char = predictions
-
-        return dict(z=z, pred_continuous=pred_continuous,
-                    pred_font=pred_font, pred_char=pred_char)
 
 
     def embed_attributes(self, categorical, continuous):
@@ -406,71 +439,12 @@ class Autoencoder(torch.nn.Module):
         return self.decoder(inputs)
 
 
-    def forward(self, x, categorical, continuous):
-
-        outputs = {"x": {}, "reconstruction": {}}
-
-        outputs["x"] = self.encode(x)
-
+    def forward(self, categorical, continuous):
         inputs = self.embed_attributes(categorical, continuous)
 
         reconstruction = self.decode(inputs)
-        outputs["reconstruction"] = self.encode(reconstruction)
 
-        return outputs, reconstruction
-
-
-class VAE(Autoencoder):
-
-    def __init__(self, exp_dict, labelset):
-        super().__init__(exp_dict, labelset)
-        mlp_width = self.exp_dict["backbone"]["mlp_width"] * self.stem_feature_size
-        mlp_depth = self.exp_dict["backbone"]["mlp_depth"]
-        mlp = MLP(self.output_size, 2 * self.z_dim, mlp_width, mlp_depth)
-        self.encoder = Encoder(self.z_dim,
-                               mlp,
-                               ratio=self.ratio,
-                               width=self.channels_width,
-                               dp_prob=exp_dict["backbone"]["dp_prob"],
-                               return_features=False,
-                               pooling_last=False)
-
-
-        self.decoder = Decoder(self.z_dim,
-                               self.channels_width,
-                               self.encoder.output_size,
-                               ratio=self.ratio,
-                               in_h=self.output_h,
-                               in_w=self.output_w,
-                               mlp_width=self.exp_dict["backbone"]["mlp_width"],
-                               mlp_depth=self.exp_dict["backbone"]["mlp_depth"])
-
-        self.apply(self.weights_init)
-
-    def encode(self, x):
-        b = x.size(0)
-        code_params = self.encoder(x)
-        return code_params[:, :self.z_dim].view(b, -1), code_params[:, self.z_dim:].view(b, -1)
-
-    def reparameterize(self, mu, logvar):
-        std = torch.exp(0.5 * logvar)
-        eps = torch.randn_like(std)
-        return mu + eps*std
-
-    def decode(self, *input):
-        return self.decoder(*input)
-
-    def forward(self, x, deterministic=False):
-        mu, logvar = self.encode(x)
-        if not deterministic:
-            z = self.reparameterize(mu, logvar)
-        else:
-            z = mu
-        reconstruction = self.decode(z)
-        return mu, logvar, z, reconstruction
-
-
-
+        return reconstruction
 
 
 

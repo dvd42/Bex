@@ -8,9 +8,9 @@ import torch.nn.functional as F
 from utils.losses import get_kl_loss, l1_loss
 from utils.metrics import _compute_sap
 from tqdm import tqdm
+from haven import haven_utils as hu
 from torchvision.utils import make_grid
 import matplotlib.pyplot as plt
-import torch.nn.parallel as parallel
 from backbones.biggan import Discriminator, DiscriminatorLoss
 from backbones import get_backbone
 
@@ -27,27 +27,28 @@ def weights_init(m):
             pass
 
 
-class Autoencoder(torch.nn.Module):
-    """Trains an Autoencoder on multiple GPUs"""
+class Generator(torch.nn.Module):
 
-    def __init__(self, exp_dict, labelset, writer=None):
+    def __init__(self, exp_dict, writer=None):
         """ Constructor
         Args:
             model: architecture to train
             self.exp_dict: reference to dictionary with the global state of the application
         """
         super().__init__()
-        self.model = get_backbone(exp_dict, labelset)
-        self.exp_dict = exp_dict
+        if "generator_dict" in exp_dict:
+            self.exp_dict = exp_dict["generator_dict"]
+        else:
+            self.exp_dict = exp_dict
+        self.model = get_backbone(self.exp_dict)
         self.ngpu = self.exp_dict["ngpu"]
         self.devices = list(range(self.ngpu))
-        self.labelset = labelset
         # self.is_categorical = {}
-        self.z_dim = exp_dict["z_dim"]
+        self.z_dim = self.exp_dict["z_dim"]
         self.w = self.exp_dict["dataset"]["width"]
         self.h = self.exp_dict["dataset"]["height"]
-        self.alpha = exp_dict["alpha"]
-        self.lamb = exp_dict["lambda"]
+        self.alpha = self.exp_dict["alpha"]
+        self.lamb = self.exp_dict["lambda"]
 
         if min(self.w, self.h) == 128:
             self.ratio = 32
@@ -58,8 +59,7 @@ class Autoencoder(torch.nn.Module):
 
         self.output_w = self.w // self.ratio
         self.output_h = self.h // self.ratio
-        self.channels_width = exp_dict["backbone"]["channels_width"]
-
+        self.channels_width = self.exp_dict["backbone"]["channels_width"]
 
         self.model.cuda()
         self.discriminator = Discriminator(ratio=self.ratio, width=self.channels_width)
@@ -73,13 +73,39 @@ class Autoencoder(torch.nn.Module):
 
         self.optimizer = torch.optim.AdamW(self.model.parameters(),
                                           betas=(0.9, 0.999),
-                                          lr=self.exp_dict["lr"], weight_decay=exp_dict["weight_decay"])
+                                          lr=self.exp_dict["lr"], weight_decay=self.exp_dict["weight_decay"])
 
         self.d_optimizer = torch.optim.AdamW(self.discriminator.parameters(),
                                           betas=(0.9, 0.999),
-                                          lr=self.exp_dict["lr"], weight_decay=exp_dict["weight_decay"])
+                                          lr=self.exp_dict["lr"], weight_decay=self.exp_dict["weight_decay"])
 
-        self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=exp_dict["max_epoch"])
+        self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=self.exp_dict["max_epoch"])
+
+        self.oracle = self.load_oracle().cuda()
+        self.freeze_oracle()
+
+    def freeze_oracle(self):
+
+        # Freeze oracle
+        for p in self.oracle.parameters():
+            p.requires_grad_(False)
+
+        self.oracle.eval()
+
+
+    def load_oracle(self):
+
+
+        oracle_dict = self.exp_dict["oracle_dict"]
+        oracle = get_backbone(oracle_dict)
+        if "weights" in oracle_dict:
+            weights = oracle_dict["weights"]
+        else:
+            weights = os.path.join(self.exp_dict["savedir_base"], hu.hash_dict(oracle_dict), "model.pth")
+
+        oracle.load_state_dict(hu.torch_load(weights)["model"])
+
+        return oracle
 
 
     def save_img(self, name, images, reconstructions, idx=0):
@@ -95,39 +121,6 @@ class Autoencoder(torch.nn.Module):
         plt.close()
 
 
-    def train_encoder_on_batch(self, batch_idx, batch):
-
-        x, y, categorical_att, continuous_att = batch
-        x = x.cuda(non_blocking=True)
-        y = y.cuda(non_blocking=True)
-        categorical_att = categorical_att.cuda()
-        continuous_att = continuous_att.cuda()
-        b = x.size(0)
-
-        outputs = self.model.encode(x)
-
-        att_mse = l1_loss(outputs["pred_continuous"], continuous_att)
-        font_loss = F.cross_entropy(outputs["pred_font"], categorical_att[:, -1])
-        char_loss = F.cross_entropy(outputs["pred_char"], categorical_att[:, -2])
-        ce_loss = (font_loss + char_loss) / 2
-        loss = att_mse + ce_loss
-        self.optimizer.zero_grad()
-
-        loss.backward()
-        self.optimizer.step()
-
-        font_acc = (outputs["pred_font"].argmax(1) == categorical_att[:, -1]).sum().item() / b
-        char_acc = (outputs["pred_char"].argmax(1) == categorical_att[:, -2]).sum().item() / b
-
-        ret = dict(char_acc=char_acc,
-                   font_acc=font_acc,
-                   att_l1_loss=att_mse.item(),
-                   ce_loss=ce_loss.item(),
-                   loss=loss.item())
-
-        return ret
-
-
     def train_on_batch(self, batch_idx, batch):
 
         x, y, categorical_att, continuous_att = batch
@@ -136,34 +129,16 @@ class Autoencoder(torch.nn.Module):
         categorical_att = categorical_att.cuda()
         continuous_att = continuous_att.cuda()
 
-        # import cv2
-        # mean = torch.tensor([0.5] * 3)[None, :, None, None]
-        # new_x = x.cpu() * mean + mean
-
-        # blacks = new_x[continuous_att[:, 0] == 1]
-        # whites = new_x[continuous_att[:, 0] == 0]
-
-        # from torchvision.utils import make_grid
-
-        # white_grid = make_grid(whites).permute(1, 2, 0).numpy()
-        # black_grid = make_grid(blacks).permute(1, 2, 0).numpy()
-
-        # cv2.imshow("White Letters", white_grid)
-        # cv2.imshow("Black Letters", black_grid)
-
-        # # for i_x, i_y in zip(new_x, continuous_att):
-
-        #     # print(y[0].item())
-        #     # cv2.imshow("img", x.permute(1, 2, 0).numpy())
-        # cv2.waitKey(0)
-
         self.optimizer.zero_grad()
         self.d_optimizer.zero_grad()
 
         train_generator = batch_idx % 3 == 1
         if train_generator:
+            outputs = {}
 
-            outputs, reconstruction = self.model(x, categorical_att, continuous_att)
+            reconstruction = self.model(categorical_att, continuous_att)
+            outputs["x"] = self.oracle(x)
+            outputs["reconstruction"] = self.oracle(reconstruction)
 
             pix_l1 = l1_loss(x, reconstruction)
             feat_l1 = l1_loss(outputs["x"]["z"], outputs["reconstruction"]["z"])
@@ -184,7 +159,7 @@ class Autoencoder(torch.nn.Module):
         # train discriminator
         else:
             with torch.no_grad():
-                outputs, reconstruction = self.model(x, categorical_att, continuous_att)
+                reconstruction = self.model(categorical_att, continuous_att)
 
             fake_loss = self.discriminator_loss(reconstruction, real=False)
             real_loss = self.discriminator_loss(x, real=True)
@@ -193,37 +168,6 @@ class Autoencoder(torch.nn.Module):
             self.d_optimizer.step()
 
             ret = dict(d_loss=d_loss.item())
-
-        return ret
-
-
-    def val_encoder_on_batch(self, epoch, batch_idx, batch, vis_flag):
-
-        x, y, categorical_att, continuous_att = batch
-        x = x.cuda(non_blocking=True)
-        y = y.cuda(non_blocking=True)
-        categorical_att = categorical_att.cuda()
-        continuous_att = continuous_att.cuda()
-        b = x.size(0)
-
-        outputs = self.model.encode(x)
-
-        att_mse = l1_loss(outputs["pred_continuous"], continuous_att)
-        font_loss = F.cross_entropy(outputs["pred_font"], categorical_att[:, -1])
-        char_loss = F.cross_entropy(outputs["pred_char"], categorical_att[:, -2])
-
-        ce_loss = (font_loss + char_loss) / 2
-        loss = ce_loss
-        loss += att_mse
-
-        font_acc = (outputs["pred_font"].argmax(1) == categorical_att[:, -1]).sum().item() / b
-        char_acc = (outputs["pred_char"].argmax(1) == categorical_att[:, -2]).sum().item() / b
-
-        ret = dict(att_l1_loss=att_mse.item(),
-                   font_acc=font_acc,
-                   char_acc=char_acc,
-                   ce_loss=ce_loss.item(),
-                   loss=loss.item())
 
         return ret
 
@@ -237,7 +181,10 @@ class Autoencoder(torch.nn.Module):
         continuous_att = continuous_att.cuda()
         b = x.size(0)
 
-        outputs, reconstruction = self.model(x, categorical_att, continuous_att)
+        outputs = {}
+        reconstruction = self.model(categorical_att, continuous_att)
+        outputs["x"] = self.oracle(x)
+        outputs["reconstruction"] = self.oracle(reconstruction)
 
         pix_l1 = l1_loss(x, reconstruction)
         feat_l1 = l1_loss(outputs["x"]["z"], outputs["reconstruction"]["z"])
@@ -265,14 +212,14 @@ class Autoencoder(torch.nn.Module):
                         reconstructed_att_loss=att_mse.item(),
                         reconstructed_font_acc=font_acc))
 
-        if vis_flag and batch_idx == 0:
+        if vis_flag and batch_idx == 0 and (epoch + 1) % 10 == 0:
             self.save_img("val_reconstruction", make_grid(x), make_grid(reconstruction), epoch)
 
         return ret
 
 
-    def predict_on_batch(self, x, categorical_att, continuous_att):
-        return self.model(x.cuda(), categorical_att.cuda(), continuous_att.cuda())
+    def predict_on_batch(self, categorical_att, continuous_att):
+        return self.model(categorical_att.cuda(), continuous_att.cuda())
 
 
     def train_on_loader(self, epoch, data_loader, pretrained=False):
@@ -288,19 +235,9 @@ class Autoencoder(torch.nn.Module):
         self.model.train()
         self.discriminator.train()
 
-        if not pretrained:
-            train_func = self.train_encoder_on_batch
-        else:
-            train_func = self.train_on_batch
-
-            # Freeze encoder
-            for name, p in self.model.named_children():
-                if "encoder" in name:
-                    getattr(self.model, name).eval()
-                    p.requires_grad_(False)
 
         for i, batch in enumerate(tqdm(data_loader)):
-            res_dict = train_func(i, batch)
+            res_dict = self.train_on_batch(i, batch)
             for k, v in res_dict.items():
                 if k in ret:
                     ret[k].append(v)
@@ -323,11 +260,8 @@ class Autoencoder(torch.nn.Module):
         ret = {}
 
         # Iterate through tasks, each iteration loads n tasks, with n = number of GPU
-        val_func = self.val_on_batch
-        if not pretrained:
-            val_func = self.val_encoder_on_batch
         for batch_idx, batch in enumerate(tqdm(data_loader)):
-            res_dict = val_func(epoch, batch_idx, batch, vis_flag)
+            res_dict = self.val_on_batch(epoch, batch_idx, batch, vis_flag)
             for k, v in res_dict.items():
                 if k in ret:
                     ret[k].append(v)
@@ -336,26 +270,11 @@ class Autoencoder(torch.nn.Module):
         ret = {f"Val/{k}": np.mean(v) for k,v in ret.items()}
         return ret
 
-    @torch.no_grad()
-    def test_on_loader(self, data_loader, max_iter=None):
-        """Iterate over the validation set
-
-        Args:
-            data_loader: iterable validation data loader
-            max_iter: max number of iterations to perform if the end of the dataset is not reached
-        """
-        self.model.eval()
-        test_loss_meter = BasicMeter.get("test_loss").reset()
-        # Iterate through tasks, each iteration loads n tasks, with n = number of GPU
-        for batch_idx, batch in enumerate(data_loader):
-            mse, regularizer, loss = self.val_on_batch(batch_idx, batch, False)
-            test_loss_meter.update(float(loss), 1)
-        return {"test_loss": test_loss_meter.mean()}
 
     def get_state_dict(self):
         ret = {}
-        ret["encoder"] = self.model.encoder.state_dict()
-        ret["decoder"] = self.model.decoder.state_dict()
+        ret["oracle"] = self.oracle.state_dict()
+        ret["generator"] = self.model.state_dict()
         ret["optimizer"] = self.optimizer.state_dict()
         ret["discriminator"] = self.discriminator.state_dict()
         ret["d_optimizer"] = self.d_optimizer.state_dict()
@@ -365,36 +284,14 @@ class Autoencoder(torch.nn.Module):
 
         return ret
 
-    def reinitialize_optim(self):
-
-        self.optimizer = torch.optim.AdamW(self.model.parameters(), betas=(0.9, 0.999),
-                                           lr=self.exp_dict["lr"], weight_decay=self.exp_dict["weight_decay"])
-        self.d_optimizer = torch.optim.AdamW(self.discriminator.parameters(), betas=(0.9, 0.999),
-                                             lr=self.exp_dict["lr"], weight_decay=self.exp_dict["weight_decay"])
-        self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=self.exp_dict["max_epoch"])
-
-
-    def load_encoder(self, state_dict):
-        self.model.encoder.load_state_dict(state_dict["encoder"])
-
 
     def load_state_dict(self, state_dict):
 
         self.optimizer.load_state_dict(state_dict["optimizer"])
-        self.model.encoder.load_state_dict(state_dict["encoder"])
-        self.model.decoder.load_state_dict(state_dict["decoder"])
+        self.oracle.load_state_dict(state_dict["oracle"])
+        self.model.load_state_dict(state_dict["generator"])
         self.model.char_embedding.load_state_dict(state_dict["char_embedding"])
         self.model.font_embedding.load_state_dict(state_dict["font_embedding"])
         self.discriminator.load_state_dict(state_dict["discriminator"])
         self.d_optimizer.load_state_dict(state_dict["d_optimizer"])
         self.scheduler.load_state_dict(state_dict["scheduler"])
-
-    def get_lr(self):
-        ret = {}
-        for i, param_group in enumerate(self.optimizer.param_groups):
-            ret["current_lr_%d" % i] = float(param_group["lr"])
-        return ret
-
-    def is_end_of_training(self):
-        lr = self.get_lr()["current_lr_0"]
-        return lr <= (self.exp_dict["lr"] * self.exp_dict["min_lr_decay"])

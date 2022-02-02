@@ -1,4 +1,5 @@
 from torch.utils.data import Dataset
+import pandas as pd
 import numpy as np
 import json
 import os
@@ -14,11 +15,15 @@ import requests
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from tools.download_dataset import get_data_path_or_download
 
+
 def get_dataset(splits, data_root, exp_dict):
-    dataset_dict = exp_dict["dataset"]
+    if "dataset" in exp_dict:
+        dataset_dict = exp_dict["dataset"]
+    else:
+        dataset_dict = exp_dict
 
     if dataset_dict["backend"] == "synbols_hdf5":
-        full_path = get_data_path_or_download(exp_dict["dataset"]["name"],
+        full_path = get_data_path_or_download(dataset_dict["name"],
                                               data_root=data_root)
         data = SynbolsHDF5(full_path,
                            dataset_dict["task"],
@@ -40,6 +45,29 @@ def get_dataset(splits, data_root, exp_dict):
             ret.append(dataset)
         exp_dict["num_classes"] = len(ret[0].labelset)  # FIXME: this is hacky
         return ret
+
+    elif dataset_dict["backend"] == "generated_synbols":
+        full_path = get_data_path_or_download(dataset_dict["name"],
+                                              data_root=data_root)
+
+        data = GeneratedSynbols(full_path, dataset_dict["num_classes"],
+                                return_attributes=dataset_dict["return_attributes"])
+
+        ret = []
+
+        for split in splits:
+            transform = [tt.ToPILImage()]
+            transform += [tt.ToTensor(),
+                          tt.Normalize([0.5] * dataset_dict["channels"],
+                                       [0.5] * dataset_dict["channels"])]
+
+            transform = tt.Compose(transform)
+            dataset = SynbolsSplit(data, split, transform=transform)
+            ret.append(dataset)
+
+        return ret
+
+
     elif dataset_dict["backend"] == "mnist":
         ret = []
         exp_dict["num_classes"] = 10  # FIXME: this is hacky
@@ -81,8 +109,88 @@ def _read_json_key(args):
     return json.loads(string)[key]
 
 
+class GeneratedSynbols:
+
+    def __init__(self, path, num_classes, ratios=[0.8, 0.2], raw_labels=True, return_attributes=False):
+
+        self.path = path
+        self.num_classes = num_classes
+        self.mask = None
+        self.ratios = ratios
+        self.raw_labels = raw_labels
+        self.return_attributes = return_attributes
+
+        print("Loading hdf5...")
+        with h5py.File(path, 'r') as data:
+            self.x = data['x'][...]
+            y = data['y'][...]
+            print("Converting json strings to labels...")
+            with multiprocessing.Pool(8) as pool:
+                self.y = pool.map(json.loads, y)
+            print("Done converting.")
+
+            if raw_labels:
+                print("Parsing raw labels...")
+                raw_labels = copy.deepcopy(self.y)
+                self.raw_labels = []
+                self.raw_labelset = {k: [] for k in raw_labels[0]}
+                for item in raw_labels:
+                    ret = {}
+                    for key in item:
+                        if not isinstance(item[key], float):
+                            ret[key] = item[key]
+                            self.raw_labelset[key].append(item[key])
+                        else:
+                            ret[key] = item[key]
+                            self.raw_labelset[key] = []
+
+                    self.raw_labels.append(ret)
+                str2int = {}
+                for k in self.raw_labelset.keys():
+                    v = self.raw_labelset[k]
+                    if len(v) > 0:
+                        v = list(sorted(set(v)))
+                        self.raw_labelset[k] = v
+                        str2int[k] = {k: i for i, k in enumerate(v)}
+                for item in self.raw_labels:
+                    for k in str2int:
+                        item[k] = str2int[k][item[k]]
+
+                print("Done parsing raw labels.")
+            else:
+                self.raw_labels = None
+
+            print("Generating labels")
+            self.y = self.generate_labels()
+            print("Done reading hdf5.")
+
+
+    def generate_labels(self):
+
+        att = {}
+
+        for item in self.raw_labels:
+            for k, v in item.items():
+                if k in att:
+                    att[k].append(v)
+                else:
+                    att[k] = [v]
+
+        df = pd.DataFrame.from_dict(att)
+
+        # ones = (df["scale"] > 0.3) & (df["rotation"] < 0)
+        ones = (df["char"] % 2 == 1)
+        # ones = (df["translation-x"] > 0.5) & (df["rotation"] < 0)
+        # ones = df["inverse_color"] > 0.5
+
+        labels = np.zeros(len(self.y))
+        labels[ones] = 1
+
+        return labels
+
+
 class SynbolsHDF5:
-    def __init__(self, path, task, ratios=[0.6, 0.2, 0.2], mask=None, trim_size=None, raw_labels=True, return_attributes=False):
+    def __init__(self, path, task, ratios=[0.8, 0.2], mask=None, trim_size=None, raw_labels=True, return_attributes=False):
         self.path = path
         self.task = task
         self.ratios = ratios
@@ -218,7 +326,6 @@ class SynbolsHDF5:
 class SynbolsSplit(Dataset):
     def __init__(self, dataset, split, transform=None):
         self.path = dataset.path
-        self.task = dataset.task
         self.mask = dataset.mask
         self.return_attributes = dataset.return_attributes
         self.raw_labelset = dataset.raw_labelset
@@ -229,6 +336,7 @@ class SynbolsSplit(Dataset):
             self.transform = lambda x: x
         else:
             self.transform = transform
+        # self.split_data(dataset.x, dataset.y, None, [0.8, 0.2])
         self.split_data(dataset.x, dataset.y, dataset.mask, dataset.ratios)
 
     def split_data(self, x, y, mask, ratios, rng=np.random.RandomState(42)):
@@ -259,12 +367,14 @@ class SynbolsSplit(Dataset):
         if self.raw_labels is None or not self.return_attributes:
             return self.transform(self.x[item]), self.y[item]
 
-        self.raw_labels[item].pop("seed") # not useful
-        continuous_att = [self.raw_labels[item]["inverse_color"]]
-        self.raw_labels[item].pop("inverse_color")
+        curr_labels = copy.deepcopy(self.raw_labels[item])
+        if "seed" in curr_labels:
+            curr_labels.pop("seed") # not useful
+        continuous_att = [curr_labels["inverse_color"]]
+        curr_labels.pop("inverse_color")
         categorical_att = []
 
-        for name, att in self.raw_labels[item].items():
+        for name, att in curr_labels.items():
             if len(self.raw_labelset[name]) > 1:
                 categorical_att.append(att)
 

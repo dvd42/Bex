@@ -1,4 +1,5 @@
 import torch.multiprocessing
+import h5py
 torch.multiprocessing.set_sharing_strategy("file_system")
 import time
 import os
@@ -9,16 +10,15 @@ from haven import haven_utils as hu
 from haven import haven_results as hr
 from haven import haven_chk as hc
 
-from datasets import get_dataset
 from torch.utils.data import DataLoader
 import torchvision.transforms as tt
 from exp_configs import EXP_GROUPS
-from models import get_model
+from explainers import get_explainer
 import pandas as pd
 import pprint
 import torch
 import numpy as np
-import tensorboardX
+from torchvision.utils import make_grid
 torch.backends.cudnn.benchmark = True
 
 
@@ -32,7 +32,7 @@ def report_and_save(score_list, model, score_list_path, model_path, savedir):
 
 
 
-def trainval(exp_dict, savedir_base, data_root, reset=False):
+def explain(exp_dict, savedir_base, data_root, reset):
     # bookkeeping
     # ---------------
     # get experiment directory
@@ -52,58 +52,38 @@ def trainval(exp_dict, savedir_base, data_root, reset=False):
     pprint.pprint(exp_dict)
     print("Experiment saved in %s" % savedir)
 
-    # Dataset
-    # -----------
-    train_dataset, val_dataset = get_dataset(['train', 'val'], data_root, exp_dict)
-    # val_dataset = get_dataset('val', exp_dict)
-
-    # train and val loader
-    train_loader = DataLoader(train_dataset,
-                                batch_size=exp_dict['batch_size'],
-                                shuffle=True,
-                                num_workers=args.num_workers)
-    val_loader = DataLoader(val_dataset,
-                                batch_size=exp_dict['batch_size'],
-                                shuffle=False,
-                                num_workers=args.num_workers)
     # Model
     # -----------
-    exp_dict["savedir_base"] = savedir_base
-    model = get_model(exp_dict, labelset=train_dataset.raw_labelset, writer=None)
-    print("Model with:", sum(p.numel() for p in model.parameters() if p.requires_grad), "parameters")
+    # exp_dict["generator_dict"]["savedir_base"] = savedir_base
+    explainer = get_explainer(exp_dict, savedir=savedir, data_path=data_root)
 
-    # Checkpoint
-    # -----------
-    model_path = os.path.join(savedir, "model.pth")
-    score_list_path = os.path.join(savedir, "score_list.pkl")
 
-    if os.path.exists(score_list_path):
-        score_list = hu.load_pkl(score_list_path)
-        epoch = score_list[-1]["epoch"] + 1
+    print("Running explainer")
+    attack_histories = explainer.attack_dataset()
 
-    else:
-        score_list = []
-        epoch = 0
+    mean = torch.tensor([0.5] * 3)[None, None, :, None, None]
+    images = np.concatenate(attack_histories["images"])[:, None, ...]
+    decoded = np.concatenate(attack_histories["decoded"])
+    to_log = torch.tensor(np.hstack((images, decoded)))
+    to_log = to_log * mean + mean
 
-    # Train & Val
-    # ------------
-    print("Starting training at epoch %d" % (epoch))
+    f, ax = plt.subplots(1, explainer.appended_images)
+    f.set_size_inches(18.5, 10.5)
+    for i, batch in enumerate(to_log.chunk(explainer.appended_images)):
+        grid = make_grid(batch.view(-1, *decoded.shape[2:]), nrow=9).permute(1, 2, 0).numpy()
+        ax[i].imshow(grid)
+        ax[i].set_axis_off()
 
-    for e in range(epoch, exp_dict["max_epoch"]):
+    wandb.log({"counterfactuals": f}, commit=True)
 
-        score_dict = {}
-
-        # Train the model
-        score_dict.update(model.train_on_loader(e, train_loader))
-
-        # Validate the model
-        score_dict.update(model.val_on_loader(e, val_loader))
-        score_dict["epoch"] = e
-
-        wandb.log(score_dict, step=e, commit=True)
-        score_list += [score_dict]
-        report_and_save(score_list, model, score_list_path, model_path, savedir)
-
+    print(f"Saving results to {savedir}")
+    with h5py.File(os.path.join(savedir, 'results.h5'), 'w') as outfile:
+        for k, v in attack_histories.items():
+            print(f'saving {k}')
+            try:
+                outfile[k] = np.concatenate(v, 0)
+            except ValueError:
+                outfile[k] = v
 
     print('experiment completed')
 
@@ -118,6 +98,8 @@ if __name__ == "__main__":
     parser.add_argument("-ei", "--exp_id", default=None)
     parser.add_argument("-j", "--run_jobs", default=0, type=int)
     parser.add_argument("-nw", "--num_workers", type=int, default=0)
+    parser.add_argument("--dry_run", action="store_true")
+    parser.add_argument("--pretraining", action="store_true")
     parser.add_argument("--project", default="Synbols")
 
     args = parser.parse_args()
@@ -157,16 +139,11 @@ if __name__ == "__main__":
     else:
         # run experiments
         for exp_dict in exp_list:
-            # do trainval
-            if not "dataset_name" in exp_dict:
-                wandb.init(project=args.project, dir=args.savedir_base, config=exp_dict, reinit=True)
-                trainval(exp_dict=exp_dict,
-                        savedir_base=args.savedir_base,
-                        data_root=args.data_root,
-                        reset=args.reset)
+            # run explainer
+            wandb.init(project=args.project, dir=args.savedir_base, config=exp_dict, reinit=True)
+            explain(exp_dict=exp_dict,
+                    savedir_base=args.savedir_base,
+                    data_root=args.data_root,
+                    reset=args.reset)
 
-                wandb.finish()
-            else:
-                from generate_dataset import generate_dataset
-                generate_dataset(args, exp_dict)
-
+            wandb.finish()
