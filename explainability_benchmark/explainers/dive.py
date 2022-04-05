@@ -22,7 +22,7 @@ class Dive(ExplainerBase):
         data_path (str): root path to datasets and pretrained models
         """
 
-        super().__init__(data_path)
+        super().__init__()
         self.encoder = encoder
         self.classifier = classifier
         self.generator = generator
@@ -85,7 +85,7 @@ class Dive(ExplainerBase):
         print("Done...")
 
 
-    def explain_batch(self, latents, logits, images, labels, classifier, generator):
+    def explain_batch(self, latents, logits, images, classifier, generator):
 
         """Uses gradient descent to compute counterfactual explanations
         Args:
@@ -94,7 +94,7 @@ class Dive(ExplainerBase):
             dict: a dictionary containing the whole attack history
         """
 
-        # TODO this is hacky
+        # # TODO this is hacky
         if not self.cache:
             self.read_or_write_fim()
             self.cache = True
@@ -180,6 +180,7 @@ class Dive(ExplainerBase):
 
     def compute_lasso_regularizer(self, z_perturbed, latents):
         latents = latents[:, None, :]
+        # TODO temporary
         lasso_c = torch.abs(z_perturbed[..., :128] - latents[..., :128]).mean()
         lasso_f = torch.abs(z_perturbed[..., 128:256] - latents[..., 128:256]).mean()
         lasso_cont = torch.abs(z_perturbed[..., 256:] - latents[..., 256:]).mean()

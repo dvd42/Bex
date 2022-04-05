@@ -14,6 +14,15 @@ solid = {
     "return_attributes": True,
 }
 
+uniform_z = {
+    "name": "uniform_z",
+    "n_attributes": 10,
+    "n_samples": 10000,
+    "num_classes": 2,
+    "ratios": [0.8, 0.2]
+}
+
+
 solid_small = {
     "backend": "synbols_hdf5",
     "n_continuous": 6,
@@ -66,7 +75,7 @@ encoder_dict = {"lr": 0.001,
                 "seed": 123,
                 "model": "encoder",
                 "backbone": biggan_encoder,
-                "weights": "pretrained_models/model/encoder.pth",
+                "weights": "encoder.pth",
                 "z_dim": 128,
                 "max_epoch": 200,
                 "dataset": solid}
@@ -74,7 +83,7 @@ encoder_dict = {"lr": 0.001,
 generator_dict = {"lr": 0.001,
                 "weight_decay": 1e-4,
                 "encoder_dict": encoder_dict,
-                "weights": "pretrained_models/model/generator.pth",
+                "weights": "generator.pth",
                 "ngpu": 1,
                 "batch_size": 64,
                 "seed": 123,
@@ -87,19 +96,31 @@ generator_dict = {"lr": 0.001,
                 "dataset": solid}
 
 
-classifier_dict = {"ngpu": 1,
+resnet_dict = {"ngpu": 1,
                    "weight_decay": 1e-4,
                    "seed": 123,
                    "lr": 0.01,
                    "batch_size": 256,
                    "backbone": {"name" :"resnet18"},
-                   "weights": "pretrained_models/classifier/classifier_font_char.pth",
+                   "weights": "classifier_font_char.pth",
                    "model": "resnet",
                    "max_epoch": 2,
                    "dataset": generated}
 
+
+mlp_dict = {"ngpu": 1,
+            "weight_decay": 1e-4,
+            "seed": 123,
+            "lr": 0.01,
+            "batch_size": 256,
+            "backbone": {"name" :"mlp", "n_hidden": 128, "num_layers": 2},
+            "weights": "classifier_toy.pth",
+            "max_epoch": 2,
+            "dataset": uniform_z,
+            }
+
+
 dive = {"generator_dict": generator_dict,
-                        "classifier_dict": classifier_dict,
                         "seed": 42,
                         "explainer": "dive",
                         "lr": 0.01,
@@ -120,8 +141,9 @@ dive = {"generator_dict": generator_dict,
                         "dataset": generated}
 
 
-default_configs["dataset"] = generated
+default_configs["dataset"] = {"synbols": generated, "uniform_z": uniform_z}
 default_configs["explainer"] = dive
-default_configs["classifier"] = classifier_dict
+default_configs["resnet"] = resnet_dict
+default_configs["mlp"] = mlp_dict
 default_configs["encoder"] = encoder_dict
 default_configs["generator"] = generator_dict

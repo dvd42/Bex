@@ -1,9 +1,10 @@
 from .dive import Dive
 from .dice import Dice
-from .base import ExplainerBase
+from .base import ExplainerBase, LatentExplainerBase
+from .gs import GrowingSpheres
 
 
-def get_explainer(explainer, encoder, generator, classifier, train_loader, **kwargs):
+def get_explainer(explainer, encoder, generator, classifier, train_loader, z_explainer, **kwargs):
 
     if isinstance(explainer, str):
         explainer = explainer.lower()
@@ -11,9 +12,11 @@ def get_explainer(explainer, encoder, generator, classifier, train_loader, **kwa
         if explainer == "dive":
             return Dive(encoder, generator, classifier, train_loader, **kwargs)
         if explainer == "dice":
-            return Dice(encoder, generator, classifier, train_loader, **kwargs)
+            return Dice(**kwargs)
+        if explainer == "gs":
+            return GrowingSpheres(**kwargs)
 
         raise ValueError("Explainer %s not found" % explainer)
 
     else:
-        return explainer
+        return explainer(**kwargs)

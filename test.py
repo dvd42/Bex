@@ -1,20 +1,37 @@
 import random
 from explainability_benchmark import Benchmark
-from explainability_benchmark import ExplainerBase
-from explainability_benchmark import BasicLogger
+from explainability_benchmark import ExplainerBase, LatentExplainerBase
+from explainability_benchmark import BasicLogger, WandbLogger
 from explainability_benchmark.random_search import EXP_GROUPS
 
+class LatentMyExplainer(LatentExplainerBase):
 
-class MyExplainer(ExplainerBase):
+    def __init__(self, num_explanations=8):
 
-    def __init__(self, data_path, num_explanations=8):
-
-        super().__init__(data_path)
+        super().__init__()
         self.num_explanations = num_explanations
         print("Wow much explainer very counterfactual")
 
 
-    def explain_batch(self, latents, logits, images, labels, classifier, generator):
+    def explain_batch(self, latents, logits, classifier):
+
+        b = latents.shape[0]
+        z = latents[:, None, ].repeat(1, self.num_explanations, 1)
+        z_perturbed = z + random.random()
+
+        return z_perturbed
+
+
+class MyExplainer(ExplainerBase):
+
+    def __init__(self, num_explanations=8):
+
+        super().__init__()
+        self.num_explanations = num_explanations
+        print("Wow much explainer very counterfactual")
+
+
+    def explain_batch(self, latents, logits, images, classifier, generator):
 
         b = latents.shape[0]
         z = latents[:, None, ].repeat(1, self.num_explanations, 1)
@@ -25,19 +42,24 @@ class MyExplainer(ExplainerBase):
         return z_perturbed, decoded.view(b, -1, *images.shape[1:])
 
 
-dummy_explainer = MyExplainer(data_path="explainability_benchmark/data")
+dummy_explainer = MyExplainer()
 
-bn = Benchmark(data_path="explainability_benchmark/data", load_train=False)
-bn.runs(EXP_GROUPS["random_search"], log_img_thr=0.6)
+# bn = Benchmark(dataset="uniform_z", classifier="mlp", data_path="explainability_benchmark/data", load_train=True)
+
+bn = Benchmark(dataset="synbols", data_path="explainability_benchmark/data", load_train=False)
+# bn.runs(EXP_GROUPS["random_search"], log_img_thr=0.6)
 # for exp in EXP_GROUPS["random_search"]:
 #     bn.run(log_img_thr=0.5, **exp)
 
 
-# bn.run(lr=0.01, explainer="dice", yloss_type="hinge_loss", max_iters=500, diversity_weight=10, proximity_weight=1)
-# bn.run(lr=0.01, method="fisher_spectral_inv", num_explanations=8, diversity_weight=0.1, reconstruction_weight=5,
-#        lasso_weight=5)
-# bn.run(lr=0.01, method="dive", num_explanations=8, diversity_weight=0, reconstruction_weight=100,
-#        lasso_weight=100)
+# bn.run(explainer=MyExplainer, log_images=True, logger=WandbLogger)
+bn.run(lr=0.01, method="dive", num_explanations=8, diversity_weight=1, reconstruction_weight=1,
+       lasso_weight=1, log_img_thr=0.5)
+# bn.run(explainer=LatentMyExplainer, z_explainer=True, logger=BasicLogger)
+# bn.run(explainer="gs", num_explanations=8, first_radius=5.0, decrease_radius=5.0, z_explainer=True, n_candidates=1000)
+# bn.run(explainer="dice", num_explanations=8, first_radius=5.0, decrease_radius=5.0, z_explainer=True, n_candidates=1000)
+# bn.run(lr=0.01, method="fisher_spectral_inv", num_explanations=8, diversity_weight=100, reconstruction_weight=5,
+       # lasso_weight=5)
 # bn.run(lr=0.01, method="fisher_spectral_inv", num_explanations=9, diversity_weight=0, reconstruction_weight=0,
         # lasso_regularizer = torch.abs(z_perturbed - latents[:, None, :]).sum()
 #        lasso_weight=0)

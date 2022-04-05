@@ -51,14 +51,14 @@ class BasicLogger:
 
         self.tensor_images = torch.cat(self.images)
         self.tensor_images = self.tensor_images * 0.5 + 0.5
-        f, ax = plt.subplots(1, len(self.images))
+        f, ax = plt.subplots(1, len(self.images), squeeze=False)
         f.set_size_inches(18.5, 10.5)
 
         for i, batch in enumerate(self.tensor_images.chunk(len(self.images))):
             _, ne, c, h, w = batch.size()
             grid = make_grid(batch.view(-1, c, h ,w), nrow=ne).permute(1, 2, 0).numpy()
-            ax[i].imshow(grid)
-            ax[i].set_axis_off()
+            ax[0, i].imshow(grid)
+            ax[0, i].set_axis_off()
 
         self._figure = f
 

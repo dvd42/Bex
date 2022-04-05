@@ -6,15 +6,21 @@ import numpy as np
 from torch.nn.utils import spectral_norm as sn
 
 
-def get_backbone(exp_dict, labelset=None):
+def get_backbone(exp_dict):
     # nclasses = exp_dict["num_classes"]
     backbone_name = exp_dict["backbone"]["name"].lower()
     if backbone_name == "biggan_encoder":
-        backbone = Encoder(exp_dict, labelset)
+        backbone = Encoder(exp_dict)
     elif backbone_name == "biggan_decoder":
-        backbone = Generator(exp_dict, labelset)
+        backbone = Generator(exp_dict)
     elif backbone_name == "resnet18":
         backbone = ResNet18(exp_dict["dataset"]["num_classes"])
+    elif backbone_name == "mlp":
+        ni = exp_dict["dataset"]["n_attributes"]
+        no = exp_dict["dataset"]["num_classes"]
+        nhidden = exp_dict["backbone"]["n_hidden"]
+        nlayers = exp_dict["backbone"]["num_layers"]
+        backbone = MLP(ni, no, nhidden, nlayers)
     else:
         raise ValueError
 
@@ -354,7 +360,7 @@ def weights_init(m):
 
 class Encoder(torch.nn.Module):
 
-    def __init__(self, exp_dict, labelset):
+    def __init__(self, exp_dict):
         super().__init__()
         self.exp_dict=exp_dict
         self.w = self.exp_dict["dataset"]["width"]
@@ -406,7 +412,7 @@ class Encoder(torch.nn.Module):
 
 class Generator(torch.nn.Module):
 
-    def __init__(self, exp_dict, labelset):
+    def __init__(self, exp_dict):
 
         super().__init__()
         self.exp_dict = exp_dict

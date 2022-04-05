@@ -1,29 +1,22 @@
 import torch
 import numpy as np
-import pandas as pd
-import copy
-from sklearn.preprocessing import MinMaxScaler, StandardScaler
 
 from .base import ExplainerBase
 
+
 class Dice(ExplainerBase):
 
-    def __init__(self, encoder, generator, classifier, train_loader, num_explanations=8, proximity_weight=0.5, data_path="data", diversity_weight=1.0, yloss_type="hinge_loss", diversity_loss_type="dpp_style:inverse_dist", lr=0.01, min_iters=500, max_iters=5000, loss_diff_thres=1e-5, loss_converge_maxiter=1, init_near_query_instance=True, stopping_threshold=0.5):
+    def __init__(self, num_explanations=8, proximity_weight=0.5, data_path="data", diversity_weight=1.0, yloss_type="hinge_loss", diversity_loss_type="dpp_style:inverse_dist", lr=0.01, max_iters=500, loss_diff_thres=1e-3, loss_converge_maxiter=1, init_near_query_instance=True, stopping_threshold=0.5):
 
-        super().__init__(data_path) # initiating data related parameters
+        super().__init__()
 
         self.data_path = data_path
-        self.encoder = encoder
-        self.generator = generator
-        self.classifier = classifier
-        self.train_loader = train_loader
         self.num_explanations = num_explanations
         self.proximity_weight = proximity_weight
         self.diversity_weight = diversity_weight
         self.yloss_type = yloss_type
         self.diversity_loss_type = diversity_loss_type
         self.lr = lr
-        self.min_iters = min_iters
         self.max_iters = max_iters
         self.loss_diff_thres = loss_diff_thres
         self.loss_converge_maxiter = loss_converge_maxiter
@@ -55,7 +48,7 @@ class Dice(ExplainerBase):
         self.mads = torch.from_numpy(self.loaded_data['mads'][...])
         print("Done...")
 
-    def explain_batch(self, latents, logits, images, labels, classifier, generator):
+    def explain_batch(self, latents, logits, images, classifier, generator):
 
         """Generates diverse counterfactual explanations
         :param query_instance: A dictionary of feature names and values. Test point of interest.
@@ -127,7 +120,7 @@ class Dice(ExplainerBase):
         optimizer = torch.optim.Adam([cf_instances], lr=self.lr)
 
 
-        self.target_cf_class = 1 - labels
+        self.target_cf_class = 1 - logits.max(1)[1]
         self.target_cf_class = self.target_cf_class.repeat(self.num_explanations)
 
         # self.min_iter = min_iter
@@ -150,7 +143,7 @@ class Dice(ExplainerBase):
         # looping the find CFs depending on whether its random initialization or not
         self.loss_converge_iter = 0
         iterations = 0
-        loss_diff = 0
+        loss_diff = float("inf")
         prev_loss = 0
         logits = None
         while self.stop_loop(iterations, loss_diff, logits) is False:
@@ -275,9 +268,6 @@ class Dice(ExplainerBase):
 
     def stop_loop(self, itr, loss_diff, test_preds):
         """Determines the stopping condition for gradient descent."""
-
-        if itr < self.min_iters:
-            return False
 
         # stop GD if max iter is reached
         if itr >= self.max_iters:
