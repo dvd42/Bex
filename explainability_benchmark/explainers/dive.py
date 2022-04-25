@@ -2,7 +2,7 @@ import torch
 import torch.nn.functional as F
 from sklearn.cluster import SpectralClustering
 from tqdm import tqdm
-from .base import ExplainerBase
+from .base import ExplainerBase, LatentExplainerBase
 
 
 torch.backends.cudnn.benchmark = True
@@ -167,7 +167,7 @@ class Dive(ExplainerBase):
             loss.backward()
             optimizer.step()
 
-        return z_perturbed, decoded
+        return z_perturbed
 
 
     def compute_loss(self, logits, predicted_labels, regularizer):

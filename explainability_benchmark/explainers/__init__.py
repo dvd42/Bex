@@ -1,6 +1,7 @@
 from .dive import Dive
 from .dice import Dice
 from .base import ExplainerBase, LatentExplainerBase
+from .latent_cf import LCF
 from .gs import GrowingSpheres
 
 
@@ -15,8 +16,9 @@ def get_explainer(explainer, encoder, generator, classifier, train_loader, z_exp
             return Dice(**kwargs)
         if explainer == "gs":
             return GrowingSpheres(**kwargs)
+        if explainer == "lcf":
+            return LCF(**kwargs)
 
-        raise ValueError("Explainer %s not found" % explainer)
+        raise NotImplementedError("Explainer %s not implemented" % explainer)
 
-    else:
-        return explainer(**kwargs)
+    return explainer(**kwargs)

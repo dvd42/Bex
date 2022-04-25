@@ -10,10 +10,10 @@ import wandb
 
 class BasicLogger:
 
-    def __init__(self, attributes, path, log_images, n_images=5):
+    def __init__(self, attributes, path, log_images, n_batches=5):
 
         self.attributes = attributes
-        self.n_images = n_images
+        self.n_batches = n_batches
         self.path = path
         self.log_images = log_images
         self.metrics = {}
@@ -28,7 +28,7 @@ class BasicLogger:
             os.makedirs(self.path)
 
 
-    def accumulate(self, data, images, skip=False):
+    def accumulate(self, data, images):
 
         for k, v in data.items():
             if k in self.metrics:
@@ -36,8 +36,8 @@ class BasicLogger:
             else:
                 self.metrics[k] = [v]
 
-        if self.log_images and not skip:
-            if len(self.images) < self.n_images:
+        if self.log_images and images is not None:
+            if len(self.images) < self.n_batches:
                 self.images.append(images)
 
 
@@ -49,16 +49,20 @@ class BasicLogger:
             logging.warning("Since no generated counterfactuals exceeded the logging image threshold, no images will be logged for this run. You can modify this threshold via the log_img_thr parameter in the benchmark.run() call")
             return
 
-        self.tensor_images = torch.cat(self.images)
-        self.tensor_images = self.tensor_images * 0.5 + 0.5
-        f, ax = plt.subplots(1, len(self.images), squeeze=False)
+        f, ax = plt.subplots(len(self.images), 2, squeeze=False)
         f.set_size_inches(18.5, 10.5)
+        for i, batch in enumerate(self.images):
+            samples = batch["samples"] * 0.5 + 0.5
+            cfs = batch["cfs"] * 0.5 + 0.5
 
-        for i, batch in enumerate(self.tensor_images.chunk(len(self.images))):
-            _, ne, c, h, w = batch.size()
-            grid = make_grid(batch.view(-1, c, h ,w), nrow=ne).permute(1, 2, 0).numpy()
-            ax[0, i].imshow(grid)
-            ax[0, i].set_axis_off()
+        # for i, batch in enumerate(self.tensor_images.chunk(len(self.images))):
+            b = samples.size(0)
+            grid = make_grid(samples, nrow=1).permute(1, 2, 0).numpy()
+            cfs_grid = make_grid(cfs, nrow=b).permute(1, 2, 0).numpy()
+            ax[i, 0].imshow(grid)
+            ax[i, 0].set_axis_off()
+            ax[i, 1].imshow(cfs_grid)
+            ax[i, 1].set_axis_off()
 
         self._figure = f
 
@@ -84,9 +88,9 @@ class BasicLogger:
 class WandbLogger(BasicLogger):
 
 
-    def __init__(self, attributes, path, log_images, n_images=5):
+    def __init__(self, attributes, path, log_images, n_batches=5):
 
-        super().__init__(attributes, path, log_images, n_images)
+        super().__init__(attributes, path, log_images, n_batches)
 
         wandb.init(project="Synbols-benchmark", dir=self.path, config=self.attributes, reinit=True)
 

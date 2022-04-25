@@ -1,4 +1,6 @@
 import random
+import matplotlib
+matplotlib.use("Agg")
 from explainability_benchmark import Benchmark
 from explainability_benchmark import ExplainerBase, LatentExplainerBase
 from explainability_benchmark import BasicLogger, WandbLogger
@@ -39,7 +41,7 @@ class MyExplainer(ExplainerBase):
         decoded = generator(z_perturbed.view(b * self.num_explanations, -1))
         logits = classifier(decoded)
 
-        return z_perturbed, decoded.view(b, -1, *images.shape[1:])
+        return z_perturbed
 
 
 dummy_explainer = MyExplainer()
@@ -47,16 +49,14 @@ dummy_explainer = MyExplainer()
 # bn = Benchmark(dataset="uniform_z", classifier="mlp", data_path="explainability_benchmark/data", load_train=True)
 
 bn = Benchmark(dataset="synbols", data_path="explainability_benchmark/data", load_train=False)
-# bn.runs(EXP_GROUPS["random_search"], log_img_thr=0.6)
-# for exp in EXP_GROUPS["random_search"]:
-#     bn.run(log_img_thr=0.5, **exp)
-
+bn.runs(EXP_GROUPS["random_search"], log_img_thr=2.)
 
 # bn.run(explainer=MyExplainer, log_images=True, logger=WandbLogger)
-bn.run(lr=0.01, method="dive", num_explanations=8, diversity_weight=1, reconstruction_weight=1,
-       lasso_weight=1, log_img_thr=0.5)
+# bn.run(explainer="lcf")
+# bn.run(lr=0.05, explainer="dive", method="fisher_spectral", num_explanations=8, diversity_weight=5, reconstruction_weight=5,
+#        lasso_weight=5)
 # bn.run(explainer=LatentMyExplainer, z_explainer=True, logger=BasicLogger)
-# bn.run(explainer="gs", num_explanations=8, first_radius=5.0, decrease_radius=5.0, z_explainer=True, n_candidates=1000)
+# bn.run(explainer="gs", num_explanations=8, first_radius=5.0, decrease_radius=5.0, n_candidates=1000, log_img_thr=2.)
 # bn.run(explainer="dice", num_explanations=8, first_radius=5.0, decrease_radius=5.0, z_explainer=True, n_candidates=1000)
 # bn.run(lr=0.01, method="fisher_spectral_inv", num_explanations=8, diversity_weight=100, reconstruction_weight=5,
        # lasso_weight=5)

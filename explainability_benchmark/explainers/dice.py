@@ -1,12 +1,15 @@
 import torch
 import numpy as np
+from tqdm import tqdm
 
 from .base import ExplainerBase
+
+torch.backends.cudnn.benchmark = True
 
 
 class Dice(ExplainerBase):
 
-    def __init__(self, num_explanations=8, proximity_weight=0.5, data_path="data", diversity_weight=1.0, yloss_type="hinge_loss", diversity_loss_type="dpp_style:inverse_dist", lr=0.01, max_iters=500, loss_diff_thres=1e-3, loss_converge_maxiter=1, init_near_query_instance=True, stopping_threshold=0.5):
+    def __init__(self, num_explanations=8, proximity_weight=0.5, data_path="data", diversity_weight=1.0, yloss_type="hinge_loss", diversity_loss_type="dpp_style:inverse_dist", lr=0.01, max_iters=500, loss_diff_thres=1e-3, init_near_query_instance=True, stopping_threshold=0.5):
 
         super().__init__()
 
@@ -17,12 +20,11 @@ class Dice(ExplainerBase):
         self.yloss_type = yloss_type
         self.diversity_loss_type = diversity_loss_type
         self.lr = lr
-        self.max_iters = max_iters
-        self.loss_diff_thres = loss_diff_thres
-        self.loss_converge_maxiter = loss_converge_maxiter
         self.init_near_query_instance = init_near_query_instance
         self.stopping_threshold = stopping_threshold
         self.cache = False
+        self.max_iters = max_iters
+        self.loss_diff_thres = loss_diff_thres
 
 
     def _read_or_write_mads(self):
@@ -79,21 +81,7 @@ class Dice(ExplainerBase):
             self.cache = True
 
 
-        # char -2 font -1
-        # TODO get attributes from embedding
-        # query_instance = {}
-        # for k, v in self.idx2name.items():
-        #     query_instance[v] = continuous_att[:, k].cpu().numpy()
-
-        # query_instance["char"] = categorical_att[:, -2].cpu().numpy()
-        # query_instance["font"] = categorical_att[:, -1].cpu().numpy()
-        # query_instance = self._prepare_query(query_instance)
-        # query_instance = torch.FloatTensor(query_instance)
-
-        # mask = torch.ones(categorical_att.shape[0] + continuous_att.shape[0], device=categorical_att.device)
         mask = torch.ones(latents.shape[1], device=latents.device).unsqueeze(0)
-        # mask = self.data_interface.get_mask_of_features_to_vary(features_to_vary)
-        # mask = torch.LongTensor(mask)
 
         b, c = latents.shape
         # initialize the cf instances
@@ -127,7 +115,6 @@ class Dice(ExplainerBase):
         # self.max_iter = max_iter
         # self.loss_diff_thres = loss_diff_thres
         # no. of iterations to wait to confirm that loss has converged
-        # self.loss_converge_maxiter = loss_converge_maxiter
 
         if self.stopping_threshold != 0.5:
             self.stopping_threshold = torch.zeros_like(self.target_cf_class).fill_(0.75)
@@ -141,11 +128,11 @@ class Dice(ExplainerBase):
         # start_time = time.time()
 
         # looping the find CFs depending on whether its random initialization or not
-        self.loss_converge_iter = 0
         iterations = 0
         loss_diff = float("inf")
         prev_loss = 0
         logits = None
+        pbar = tqdm(total=self.max_iters)
         while self.stop_loop(iterations, loss_diff, logits) is False:
 
             cf_instances.requires_grad = True
@@ -172,11 +159,11 @@ class Dice(ExplainerBase):
             loss_diff = abs(loss_value-prev_loss)
             prev_loss = loss_value
             iterations += 1
+            pbar.update(1)
 
 
-        self.loss_converge_iter = 0
 
-        return cf_instances, decoded.view(b, -1, *images.shape[1:])
+        return cf_instances
 
 
     def compute_yloss(self, logits):
@@ -275,10 +262,6 @@ class Dice(ExplainerBase):
 
         # else stop when loss diff is small & all CFs are valid (less or greater than a stopping threshold)
         if loss_diff <= self.loss_diff_thres:
-            self.loss_converge_iter += 1
-            if self.loss_converge_iter < self.loss_converge_maxiter:
-                return False
-
             test_preds = torch.sigmoid(test_preds)
             test_preds = torch.where(self.target_cf_class == 0, test_preds[:, 0], test_preds[:, 1])
             if (test_preds > self.stopping_threshold).all():
@@ -289,5 +272,4 @@ class Dice(ExplainerBase):
                 # return True
             return False
 
-        self.loss_converge_iter = 0
         return False

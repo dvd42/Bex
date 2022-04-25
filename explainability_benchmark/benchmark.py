@@ -35,7 +35,8 @@ class DatasetWrapper(torch.utils.data.Dataset):
 
 class Benchmark:
 
-    def __init__(self, dataset="synbols", classifier="resnet", data_path="data", batch_size=12, log_images=True, n_samples=100, load_train=True):
+    def __init__(self, dataset="synbols", classifier="resnet", data_path="data", batch_size=12, log_images=True, n_samples=100, load_train=True,
+                 norm=1):
 
         self.data_path = data_path
         self.log_images = log_images
@@ -46,7 +47,7 @@ class Benchmark:
         self.classifier_name = classifier
         self.results = []
         self.current_config = {}
-        self.max_norm = 2
+        self.norm = norm
 
         dataset = default_configs["dataset"][self.dataset_name]
         if load_train:
@@ -56,6 +57,13 @@ class Benchmark:
         print("Loading test data...")
         val_set = DatasetWrapper(get_dataset(["val"], self.data_path, dataset)[0])
         self.val_dataset = val_set
+        # import matplotlib
+        # matplotlib.use("TkAgg")
+        # import matplotlib.pyplot as plt
+        # for i, x in enumerate(val_set.dataset.x):
+        #     print(val_set.dataset.raw_labels[i]["font"])
+        #     plt.imshow(x)
+        #     plt.show()
 
         generator = get_model("generator", self.data_path).eval()
         self.encoder = generator.model.embed_attributes
@@ -90,14 +98,18 @@ class Benchmark:
             att.pop("cache")
 
         att.pop("digest")
-        run_config = {"classifier": self.classifier_name, "dataset": self.dataset_name, "explainer": explainer_name, "batch_size": self.batch_size, "num_samples": self.n_samples, **att}
+        run_config = {"norm": self.norm, "classifier": self.classifier_name,
+                      "dataset": self.dataset_name,
+                      "explainer": explainer_name, "batch_size": self.batch_size,
+                      "num_samples": self.n_samples, **att
+                     }
         logger = logger(run_config, output_path, log_images=log_images)
 
         return explainer, logger
 
 
     def _get_loader(self, dataset):
-        return torch.utils.data.DataLoader(dataset, batch_size=self.batch_size, num_workers=4, drop_last=False, shuffle=False)
+        return torch.utils.data.DataLoader(dataset, batch_size=self.batch_size, num_workers=0, drop_last=False, shuffle=False)
 
 
     def _select_data_subset(self, explainer):
@@ -164,72 +176,78 @@ class Benchmark:
         return _generator
 
 
-    def _boundz(self, z_perturbed):
+    # def _boundz(self, z_perturbed):
 
-        total_norm = torch.linalg.norm(z_perturbed, 2, dim=-1)
-        clip_coef = torch.clamp(self.max_norm / (total_norm + 1e-6), max=1.0)
-        z_perturbed = z_perturbed * clip_coef[..., None]
+    #     total_norm = torch.linalg.norm(z_perturbed, 2, dim=-1)
+    #     clip_coef = torch.clamp(self.max_norm / (total_norm + 1e-6), max=1.0)
+    #     z_perturbed = z_perturbed * clip_coef[..., None]
 
-        return z_perturbed
+    #     return z_perturbed
 
 
     def _get_successful_cf(self, z_perturbed, logits):
 
         b, ne, c = z_perturbed.size()
         z_perturbed = z_perturbed.view(-1, c)
+
         if self.current_config["z_explainer"]:
             oracle_labels = self.val_dataset.dataset.oracle(z_perturbed)
 
         else:
             oracle_labels = self.val_dataset.dataset.oracle(z_perturbed, self.generator.model)
 
-        labels = logits.repeat(ne, 1)
-        mask = labels.argmax(1).view(b, ne) != oracle_labels.view(b, ne)
+        mask = logits.argmax(1).view(b, ne) != oracle_labels.view(b, ne)
 
         return mask
 
-    @staticmethod
-    def _compute_metrics(z, z_perturbed, successful_cf):
+    def _compute_metrics(self, z, z_perturbed, successful_cf):
 
         if successful_cf.sum() == 0:
-            return 0, 0
+            return 0, 0, None
 
-        b, num_explanations, c = z_perturbed.size()
-        z = z.repeat(num_explanations, 1).view(b, num_explanations, c).detach()
+        b, ne, c = z_perturbed.size()
+        z = z.repeat(ne, 1).view(b, ne, c).detach()
         z_perturbed = z_perturbed.view_as(z).detach()
-        z = z[successful_cf]
-        z_perturbed = z_perturbed[successful_cf]
 
-        similarity = (F.normalize(z, 1) - F.normalize(z_perturbed, 1)).abs().sum(-1).mean().cpu().numpy()
-        similarity = 1 / (1 + similarity)
+        similarity = []
+        success = []
+        idxs = []
+        for i, samples in enumerate(successful_cf):
 
-        # z_perturbed[~successful_cf] = 0
-        # success = float((torch.linalg.matrix_rank(z_perturbed) / num_explanations).mean().cpu().numpy())
+            if z[i][samples].numel() == 0:
+                continue
 
-        ortho_set = torch.tensor([]).to(z_perturbed.device)
-        z_perturbed = z_perturbed.view(-1, c)
-        norm = torch.linalg.norm(z.view(-1, c) - z_perturbed, 1, dim=1)
-        norm_sort = torch.argsort(norm)
-        z_perturbed_sorted = z_perturbed[norm_sort]
+            ortho_set = torch.tensor([]).to(z_perturbed.device)
+            norm = torch.linalg.norm(z[i][samples] - z_perturbed[i][samples], ord=self.norm, dim=-1)
+            norm_sort = torch.argsort(norm)
+            z_perturbed_sorted = z_perturbed[norm_sort]
 
-        eps = 0.05
-        for exp in z_perturbed_sorted:
-            exp = exp[None]
-            if ortho_set.numel() == 0:
-                ortho_set = torch.cat((ortho_set, exp), 0)
-
-            else:
-                dist = torch.cosine_similarity(exp, ortho_set)
-                if torch.all(dist.abs() < 0 + eps):
+            eps = 0.05
+            idx = []
+            for j, exp in enumerate(z_perturbed_sorted):
+                exp = exp[None]
+                if ortho_set.numel() == 0:
+                    idx.append(j)
                     ortho_set = torch.cat((ortho_set, exp), 0)
 
-                elif (dist < -1 + eps).sum() == 1:
-                    # non-zero element close to -1
-                    ortho_set = torch.cat((ortho_set, exp), 0)
+                else:
+                    dist = torch.cosine_similarity(exp, ortho_set)
+                    if torch.all(dist.abs() < 0 + eps):
+                        idx.append(j)
+                        ortho_set = torch.cat((ortho_set, exp), 0)
 
-        success = ortho_set.size(0) / z_perturbed_sorted.size(0)
+                    elif (dist < -1 + eps).sum() == 1:
+                        # non-zero element close to -1 (complementary explanation)
+                        idx.append(j)
+                        ortho_set = torch.cat((ortho_set, exp), 0)
 
-        return similarity, success
+            success.append(ortho_set.size(0))
+            s = norm[norm_sort][idx].mean()
+            similarity.append(1 / (1 + s).item())
+            idxs.append((i, samples.nonzero().view(-1)[norm_sort[idx]]))
+
+
+        return np.mean(similarity), np.mean(success), idxs
 
 
     def _cleanup(self, explainer, logger):
@@ -239,16 +257,21 @@ class Benchmark:
         self.current_config = {}
 
 
-    def _accumulate_log(self, logger, similarity, success, x, decoded):
+    def _accumulate_log(self, logger, metrics, x, decoded, idxs):
 
-        to_log = []
-        skip = (success + similarity) / 2 < self.current_config["log_img_thr"]
-        if self.current_config["log_images"]:
+        skip = metrics["success"] < self.current_config["log_img_thr"]
+        to_log = None
+        if self.current_config["log_images"] and not skip:
             b, c, h, w = x.size()
             decoded = decoded.view(b, -1, c, h, w)
-            to_log = torch.hstack((x[:, None, ...], decoded)).detach().cpu()
+            to_log = {"samples": torch.tensor([]), "cfs": torch.tensor([])}
+            for idx in idxs:
+                to_log["samples"] = torch.cat((to_log["samples"], x[idx[0]].detach().cpu()))
+                to_log["cfs"] = torch.cat((to_log["cfs"], decoded[idx[0], idx[1]].detach().cpu()))
 
-        logger.accumulate({"similarity": similarity, "success": success}, to_log, skip=skip)
+            to_log["samples"] = to_log["samples"].view(len(idxs), c, h, w)
+
+        logger.accumulate(metrics, to_log)
 
 
     def runs(self, exp_list, **kwargs):
@@ -256,7 +279,7 @@ class Benchmark:
             self.run(**exp, **kwargs)
 
 
-    def run(self, explainer="Dive", logger=WandbLogger, z_explainer=False, output_path=None, log_images=True, log_img_thr=0.5, **kwargs):
+    def run(self, explainer="Dive", logger=WandbLogger, z_explainer=False, output_path=None, log_images=True, log_img_thr=2., **kwargs):
 
         self._set_config(explainer, log_images, output_path, z_explainer, log_img_thr)
         explainer, logger = self._setup(explainer, logger, **kwargs)
@@ -268,26 +291,77 @@ class Benchmark:
         for batch in tqdm(self.val_loader):
 
             latents, logits, x, y = self._prepare_batch(batch, explainer)
+            b, c = latents.size()
 
+            generator = self._get_generator_callable(explainer)
             if self.current_config["z_explainer"]:
                 # x and latents are the same thing when working on z-explainer
                 z_perturbed = explainer.explain_batch(latents, logits, self.classifier.model)
             else:
-                generator = self._get_generator_callable(explainer)
-                z_perturbed, decoded = explainer.explain_batch(latents, logits, x, self.classifier.model, generator)
+                z_perturbed = explainer.explain_batch(latents, logits, x, self.classifier.model, generator)
 
-            # l_max_norm bound
-            z_perturbed = self._boundz(z_perturbed)
+            decoded = generator(z_perturbed.view(-1, c))
+            logits_perturbed = self.classifier.model(decoded)
 
-            successful_cf = self._get_successful_cf(z_perturbed, logits)
-            similarity, success = Benchmark._compute_metrics(latents, z_perturbed, successful_cf)
+            z_perturbed = z_perturbed.view(b, -1, c)
+            successful_cf = self._get_successful_cf(z_perturbed, logits_perturbed)
+            similarity, success, idxs = self._compute_metrics(latents, z_perturbed, successful_cf)
 
-            self._accumulate_log(logger, similarity, success, x, decoded)
+            metrics = {"similarity": similarity, "success": success}
+            self._accumulate_log(logger, metrics, x, decoded, idxs)
 
         logger.log()
 
         self.results.append({"explainer": self.current_config["explainer_name"], **logger.metrics, **logger.attributes})
         self._cleanup(explainer, logger)
+            # if successful_cf.sum() != 0:
+            #     b, ne, c = z_perturbed.size()
+            #     z = latents.repeat(ne, 1).view(-1, c)
+            #     # successful_cf[1:5] = True
+            #     # successful_cf[-1] = True
+            #     z_perturbed = z_perturbed.view(-1, c)
+            #     diff = (z_perturbed[successful_cf] - z[successful_cf]).abs()
+            #     value, idx = diff.sort(1)
+            #     b_coord, z_coord = torch.where(value < 0 + 0.05)
+
+            #     # create a batch with the smallest elements in each tensor incrementally set to 0
+            #     # and their corresponding labels
+            #     count = torch.unique(b_coord, return_counts=True)[1]
+            #     logits = logits.repeat(ne, 1)[successful_cf]
+            #     new_z = torch.cat([x.repeat(y, 1) for x, y in zip(z_perturbed[successful_cf], count)])
+            #     new_logits = torch.cat([x.repeat(y, 1) for x, y in zip(logits, count)])
+
+            #     start = 0
+            #     for c in count:
+            #         end = start + c
+            #         for j, cf in enumerate(new_z[start: end]):
+            #             cf[idx[b_coord, z_coord][start:start + j+1]] = 0.0
+
+                    # start = end
+                # ---------------
+                # new_successful_cf = self._get_successful_cf(new_z, new_logits)
+                # idxs_mask = []
+                # start = 0
+                # for i, c in enumerate(count):
+                #     end = start + c
+                #     idxs_mask.append(list(range(start, end)))
+                #     start = end
+
+                # new_successful_cf[1] = True
+                # new_successful_cf[2] = True
+                # new_successful_cf[3] = True
+                # new_successful_cf[4] = False
+                # new_successful_cf[-1] = True
+                # z_perturbed = z_perturbed[successful_cf]
+                # idxs = torch.where(new_successful_cf)[0]
+                # for i, mask in enumerate(idxs_mask):
+                #     for j in idxs:
+                #         if j in mask:
+                #             z_perturbed[i] = new_z[j]
+
+
+            # similarity, success = Benchmark._compute_metrics(latents, z_perturbed, successful_cf)
+
 
 
     def summarize(self):
