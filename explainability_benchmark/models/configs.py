@@ -1,3 +1,4 @@
+import copy
 default_configs = {}
 
 
@@ -14,14 +15,6 @@ solid = {
     "return_attributes": True,
 }
 
-uniform_z = {
-    "name": "uniform_z",
-    "n_attributes": 10,
-    "n_samples": 10000,
-    "num_classes": 2,
-    "ratios": [0.8, 0.2]
-}
-
 
 solid_small = {
     "backend": "synbols_hdf5",
@@ -36,18 +29,21 @@ solid_small = {
     "return_attributes": True,
 }
 
-generated = {
+generated_font_corr = {
     "backend": "generated_synbols",
     "n_continuous": 6,
     "width": 32,
     "height": 32,
     "channels": 3,
-    "name": "dataset-generated-font-char.h5py",
+    "name": "dataset-font-correlation.h5py",
     "num_classes": 2,
     "augmentation": False,
     "mask": "random",
     "return_attributes": True}
 
+
+generated_color_corr = copy.deepcopy(generated_font_corr)
+generated_color_corr["name"] = "dataset-color-correlation.h5py"
 
 biggan_decoder = {
     "name": "biggan_decoder",
@@ -96,16 +92,21 @@ generator_dict = {"lr": 0.001,
                 "dataset": solid}
 
 
-resnet_dict = {"ngpu": 1,
+resnet_dict_font = {"ngpu": 1,
                    "weight_decay": 1e-4,
                    "seed": 123,
                    "lr": 0.01,
                    "batch_size": 256,
                    "backbone": {"name" :"resnet18"},
-                   "weights": "classifier_font_char.pth",
+                   "weights":None,
                    "model": "resnet",
                    "max_epoch": 2,
-                   "dataset": generated}
+                    "dataset": generated_font_corr}
+
+
+resnet_dict_color = copy.deepcopy(resnet_dict_font)
+resnet_dict_color["dataset"] = generated_color_corr
+resnet_dict_color["weights"] = None
 
 
 mlp_dict = {"ngpu": 1,
@@ -116,34 +117,13 @@ mlp_dict = {"ngpu": 1,
             "backbone": {"name" :"mlp", "n_hidden": 128, "num_layers": 2},
             "weights": "classifier_toy.pth",
             "max_epoch": 2,
-            "dataset": uniform_z,
             }
 
 
-dive = {"generator_dict": generator_dict,
-                        "seed": 42,
-                        "explainer": "dive",
-                        "lr": 0.01,
-                        "max_iters": 20,
-                        "cache_batch_size": 64,
-                        "force_cache": False,
-                        "batch_size": 100,
-                        # if x% of the counterfactuals are successful
-                        "stop_batch_threshold": 0.9,
-                        "num_explanations": 8,
-                        "method": "fisher_spectral_inv",
-                        # "method": "else",
-                        "reconstruction_weight": 1,
-                        "lasso_weight": 1.,
-                        "diversity_weight": 1,
-                        "n_samples": 100,
-                        "fisher_samples": 0,
-                        "dataset": generated}
-
-
-default_configs["dataset"] = {"synbols": generated, "uniform_z": uniform_z}
-default_configs["explainer"] = dive
-default_configs["resnet"] = resnet_dict
+default_configs["dataset"] = {"synbols_font": generated_font_corr,
+                              "synbols_color": generated_color_corr}
+default_configs["resnet_font"] = resnet_dict_font
+default_configs["resnet_color"] = resnet_dict_color
 default_configs["mlp"] = mlp_dict
 default_configs["encoder"] = encoder_dict
 default_configs["generator"] = generator_dict

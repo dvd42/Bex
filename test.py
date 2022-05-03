@@ -48,13 +48,12 @@ dummy_explainer = MyExplainer()
 
 # bn = Benchmark(dataset="uniform_z", classifier="mlp", data_path="explainability_benchmark/data", load_train=True)
 
-bn = Benchmark(dataset="synbols", data_path="explainability_benchmark/data", load_train=False)
+bn = Benchmark(dataset="synbols_color",  classifier="resnet", data_path="explainability_benchmark/data", load_train=True)
 bn.runs(EXP_GROUPS["random_search"], log_img_thr=2.)
 
 # bn.run(explainer=MyExplainer, log_images=True, logger=WandbLogger)
 # bn.run(explainer="lcf")
-# bn.run(lr=0.05, explainer="dive", method="fisher_spectral", num_explanations=8, diversity_weight=5, reconstruction_weight=5,
-#        lasso_weight=5)
+# bn.run(lr=0.05, explainer="dive", method="fisher_spectral", num_explanations=8, diversity_weight=5, reconstruction_weight=5, lasso_weight=5)
 # bn.run(explainer=LatentMyExplainer, z_explainer=True, logger=BasicLogger)
 # bn.run(explainer="gs", num_explanations=8, first_radius=5.0, decrease_radius=5.0, n_candidates=1000, log_img_thr=2.)
 # bn.run(explainer="dice", num_explanations=8, first_radius=5.0, decrease_radius=5.0, z_explainer=True, n_candidates=1000)

@@ -107,19 +107,8 @@ def get_dataset(splits, data_root, exp_dict):
     else:
         dataset_dict = exp_dict
 
-    if dataset_dict["name"] == "uniform_z":
 
-        ret = []
-        for split in splits:
-
-            ratio = dataset_dict["ratios"][0] if split == "train" else dataset_dict["ratios"][1]
-            data = ToyZ(n_attributes=dataset_dict["n_attributes"],
-                        n_samples=int(dataset_dict["n_samples"] * ratio))
-
-            ret.append(data)
-
-
-    elif dataset_dict["backend"] == "generated_synbols":
+    if dataset_dict["backend"] == "generated_synbols":
         full_path = get_data_path_or_download(dataset_dict["name"],
                                             data_root=data_root)
 
@@ -138,6 +127,29 @@ def get_dataset(splits, data_root, exp_dict):
             dataset = SynbolsSplit(data, split, transform=transform)
             ret.append(dataset)
 
+
+    elif dataset_dict["backend"] == "synbols_hdf5":
+        full_path = get_data_path_or_download(dataset_dict["name"],
+                                            data_root=data_root)
+        data = SynbolsHDF5(full_path,
+                        dataset_dict["task"],
+                        mask=dataset_dict["mask"],
+                        trim_size=dataset_dict.get("trim_size", None),
+                        return_attributes=dataset_dict["return_attributes"])
+        ret = []
+        for split in splits:
+            transform = [tt.ToPILImage()]
+            if dataset_dict["augmentation"] and split == "train":
+                transform += [tt.RandomResizedCrop(size=(dataset_dict["height"], dataset_dict["width"]), scale=(0.8, 1)),
+                            tt.RandomHorizontalFlip(),
+                            tt.ColorJitter(0.4, 0.4, 0.4, 0.4)]
+            transform += [tt.ToTensor(),
+                        tt.Normalize([0.5] * dataset_dict["channels"],
+                                    [0.5] * dataset_dict["channels"])]
+            transform = tt.Compose(transform)
+            dataset = SynbolsSplit(data, split, transform=transform)
+            ret.append(dataset)
+
     else:
         raise ValueError
 
@@ -145,9 +157,138 @@ def get_dataset(splits, data_root, exp_dict):
     return ret
 
 
-def _read_json_key(args):
-    string, key = args
-    return json.loads(string)[key]
+class SynbolsHDF5:
+    def __init__(self, path, task, ratios=[0.8, 0.2], mask=None, trim_size=None, raw_labels=True, return_attributes=False):
+        self.path = path
+        self.task = task
+        self.ratios = ratios
+        self.return_attributes = return_attributes
+        print("Loading hdf5...")
+        with h5py.File(path, 'r') as data:
+            self.x = data['x'][...]
+            y = data['y'][...]
+            print("Converting json strings to labels...")
+            with multiprocessing.Pool(8) as pool:
+                self.y = pool.map(json.loads, y)
+            print("Done converting.")
+            if isinstance(mask, str):
+                if "split" in data:
+                    if mask in data['split'] and mask == "random":
+                        self.mask = data["split"][mask][...]
+                    else:
+                        self.mask = self.parse_mask(mask, ratios=ratios)
+                else:
+                    raise ValueError
+            else:
+                self.mask = mask
+
+            if raw_labels:
+                print("Parsing raw labels...")
+                raw_labels = copy.deepcopy(self.y)
+                self.raw_labels = []
+                to_filter = ["resolution", "symbols", "background",
+                             "foreground", "alphabet", "is_bold", "is_slant"]
+                self.raw_labelset = {k: [] for k in raw_labels[0].keys()}
+                for item in raw_labels:
+                    ret = {}
+                    for key in item.keys():
+                        if key not in to_filter:
+                            if key == "translation":
+                                ret['translation-x'], \
+                                    ret['translation-y'] = item[key]
+                                self.raw_labelset['translation-x'] = []
+                                self.raw_labelset['translation-y'] = []
+                            elif not isinstance(item[key], float):
+                                ret[key] = item[key]
+                                self.raw_labelset[key].append(item[key])
+                            else:
+                                ret[key] = item[key]
+                                self.raw_labelset[key] = []
+
+                    self.raw_labels.append(ret)
+                str2int = {}
+                for k in self.raw_labelset.keys():
+                    v = self.raw_labelset[k]
+                    if len(v) > 0:
+                        v = list(sorted(set(v)))
+                        self.raw_labelset[k] = v
+                        str2int[k] = {k: i for i, k in enumerate(v)}
+                for item in self.raw_labels:
+                    for k in str2int.keys():
+                        item[k] = str2int[k][item[k]]
+
+                print("Done parsing raw labels.")
+            else:
+                self.raw_labels = None
+
+            self.y = np.array([y[task] for y in self.y])
+            self.trim_size = trim_size
+            if trim_size is not None and len(self.x) > self.trim_size:
+                self.mask = self.trim_dataset(self.mask)
+            print("Done reading hdf5.")
+
+    def trim_dataset(self, mask, train_size=60000, val_test_size=20000):
+        labelset = np.sort(np.unique(self.y))
+        counts = np.array([np.count_nonzero(self.y == y) for y in labelset])
+        imxclass_train = int(np.ceil(train_size / len(labelset)))
+        imxclass_val_test = int(np.ceil(val_test_size / len(labelset)))
+        ind_train = np.arange(mask.shape[0])[mask[:, 0]]
+        y_train = self.y[ind_train]
+        ind_train = np.concatenate([np.random.permutation(ind_train[y_train == y])[
+                                   :imxclass_train] for y in labelset], 0)
+        ind_val = np.arange(mask.shape[0])[mask[:, 1]]
+        y_val = self.y[ind_val]
+        ind_val = np.concatenate([np.random.permutation(ind_val[y_val == y])[
+                                 :imxclass_val_test] for y in labelset], 0)
+        ind_test = np.arange(mask.shape[0])[mask[:, 2]]
+        y_test = self.y[ind_test]
+        ind_test = np.concatenate([np.random.permutation(ind_test[y_test == y])[
+                                  :imxclass_val_test] for y in labelset], 0)
+        current_mask = np.zeros_like(mask)
+        current_mask[ind_train, 0] = True
+        current_mask[ind_val, 1] = True
+        current_mask[ind_test, 2] = True
+        return current_mask
+
+    def parse_mask(self, mask, ratios):
+        args = mask.split("_")[1:]
+        if "stratified" in mask:
+            mask = 1
+            for arg in args:
+                if arg == 'translation-x':
+                    def fn(x): return x['translation'][0]
+                elif arg == 'translation-y':
+                    def fn(x): return x['translation'][1]
+                else:
+                    def fn(x): return x[arg]
+                mask *= get_stratified(self.y, fn,
+                                       ratios=[ratios[1], ratios[0], ratios[2]])
+            mask = mask[:, [1, 0, 2]]
+        elif "compositional" in mask:
+            partition_map = None
+            if len(args) != 2:
+                raise RuntimeError(
+                    "Compositional splits must contain two fields to compose")
+            for arg in args:
+                if arg == 'translation-x':
+                    def fn(x): return x['translation'][0]
+                elif arg == 'translation-y':
+                    def fn(x): return x['translation'][1]
+                else:
+                    def fn(x): return x[arg]
+                if partition_map is None:
+                    partition_map = get_stratified(self.y, fn, tomap=False)
+                else:
+                    _partition_map = get_stratified(self.y, fn, tomap=False)
+                    partition_map = stratified_splits.compositional_split(
+                        _partition_map, partition_map)
+            partition_map = partition_map.astype(bool)
+            mask = np.zeros_like(partition_map)
+            for i, split in enumerate(np.argsort(partition_map.astype(int).sum(0))[::-1]):
+                mask[:, i] = partition_map[:, split]
+        else:
+            raise ValueError
+        return mask
 
 
 class GeneratedSynbols:
@@ -201,8 +342,7 @@ class GeneratedSynbols:
             else:
                 self.raw_labels = None
 
-            print("Generating labels")
-            self.y = self.generate_labels()
+            self.y = data["labels"][...]
             print("Done reading hdf5.")
 
 
@@ -220,10 +360,7 @@ class GeneratedSynbols:
 
         df = pd.DataFrame.from_dict(att)
 
-        # ones = (df["scale"] > 0.3) & (df["rotation"] < 0)
         ones = (df["char"] % 2 == 1)
-        # ones = (df["translation-x"] > 0.5) & (df["rotation"] < 0)
-        # ones = df["inverse_color"] > 0.5
 
         labels = np.zeros(len(self.y))
         labels[ones] = 1
@@ -310,43 +447,3 @@ class SynbolsSplit(Dataset):
 
     def __len__(self):
         return len(self.x)
-
-
-class ToyZ(Dataset):
-
-    def __init__(self, n_attributes, n_samples):
-        self.n_attributes = n_attributes
-        self.n_samples = n_samples
-
-        self.x = torch.zeros(n_samples, n_attributes)
-        self.x.uniform_(0, 1)
-
-        self.y = self.generate_labels()
-
-
-    def oracle(self, z):
-
-        ones = z[..., 1] < 0.5
-        labels = torch.zeros_like(ones).long()
-        labels[ones] = 1
-
-        return labels
-
-
-    def generate_labels(self):
-
-        return self.oracle(self.x).numpy()
-
-
-    def __len__(self):
-        return len(self.y)
-
-
-    def __getitem__(self, idx):
-        return self.x[idx], self.y[idx]
-
-
-
-
-
-

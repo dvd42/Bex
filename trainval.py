@@ -29,7 +29,6 @@ def report_and_save(score_list, model, score_list_path, model_path, savedir):
     print("Checkpoint Saved: %s" % savedir)
 
 
-
 def trainval(exp_dict, exp_group_name, savedir_base, data_root, reset=False):
     # bookkeeping
     # ---------------

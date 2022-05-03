@@ -35,7 +35,7 @@ class DatasetWrapper(torch.utils.data.Dataset):
 
 class Benchmark:
 
-    def __init__(self, dataset="synbols", classifier="resnet", data_path="data", batch_size=12, log_images=True, n_samples=100, load_train=True,
+    def __init__(self, dataset="synbols_font", classifier="resnet", data_path="data", batch_size=12, log_images=True, n_samples=100, load_train=True,
                  norm=1):
 
         self.data_path = data_path
@@ -44,7 +44,7 @@ class Benchmark:
         self.n_samples = n_samples
         self.train_dataset = None
         self.dataset_name = dataset
-        self.classifier_name = classifier
+        self.classifier_name = classifier #+ "_" + dataset.split("_")[-1]
         self.results = []
         self.current_config = {}
         self.norm = norm
@@ -69,7 +69,7 @@ class Benchmark:
         self.encoder = generator.model.embed_attributes
         self.generator = generator
 
-        self.classifier = get_model(self.classifier_name, self.data_path).eval()
+        self.classifier = get_model(self.classifier_name + "_" + self.dataset_name.split("_")[1], self.data_path).eval()
         self.val_loader = self._get_loader(self.val_dataset)
         self.train_loader = None
         if load_train:
@@ -133,7 +133,7 @@ class Benchmark:
         explainer.digest = os.path.join(self.data_path, digest)
 
         if not os.path.isfile(explainer.digest):
-            print("Caching latents")
+            print(f"Caching latents to {explainer.digest}")
             if z_explainer:
                 # explainer.write_cache(self.train_loader, self.classifier.model, "train")
                 explainer.write_cache(self.val_loader, self.classifier.model)
@@ -188,17 +188,45 @@ class Benchmark:
     def _get_successful_cf(self, z_perturbed, logits):
 
         b, ne, c = z_perturbed.size()
-        z_perturbed = z_perturbed.view(-1, c)
+        # z_perturbed = z_perturbed.view(-1, c)
+        # weights = self.generator.model.char_embedding.weight
+        # weights = weights[None, ...]
+        # first 128 are the embedding of char class
+        # z_char = z_perturbed[:, None, :128]
 
-        if self.current_config["z_explainer"]:
-            oracle_labels = self.val_dataset.dataset.oracle(z_perturbed)
+        # preds = torch.linalg.norm(weights - z_char, dim=-1).argmin(-1)
+        # ones = preds % 2 == 1
+        # oracle_labels = torch.zeros_like(preds)
+        # oracle_labels[ones] = 1
 
-        else:
-            oracle_labels = self.val_dataset.dataset.oracle(z_perturbed, self.generator.model)
+        # if self.current_config["z_explainer"]:
+        #     oracle_labels = self.val_dataset.dataset.oracle(z_perturbed)
 
+        # else:
+        #     oracle_labels = self.val_dataset.dataset.oracle(z_perturbed, self.generator.model)
+
+        # mask = logits.argmax(1).view(b, ne) != oracle_labels.view(b, ne)
+        z_perturbed = self._shrink_z(z_perturbed)
+        # cos = torch.cosine_similarity(weights, z_char, dim=-1)
+        preds = z_perturbed.view(-1, z_perturbed.size(-1))[:, :48].argmax(1)
+        ones = preds % 2 == 1
+        oracle_labels = torch.zeros_like(preds)
+        oracle_labels[ones] = 1
         mask = logits.argmax(1).view(b, ne) != oracle_labels.view(b, ne)
 
-        return mask
+        return mask, z_perturbed
+
+    def _shrink_z(self, z):
+        b, ne, c = z.size()
+        z = z.view(-1, c)
+        weights = self.generator.model.char_embedding.weight
+        weights = weights[None, ...]
+        # first 128 are the embedding of char class
+        z_char = z[:, None, :128]
+        cos = torch.cosine_similarity(weights, z_char, dim=-1)
+        z = torch.cat((cos, z[:, 128:]), 1)
+
+        return z.view(b, ne, -1)
 
     def _compute_metrics(self, z, z_perturbed, successful_cf):
 
@@ -206,8 +234,9 @@ class Benchmark:
             return 0, 0, None
 
         b, ne, c = z_perturbed.size()
-        z = z.repeat(ne, 1).view(b, ne, c).detach()
-        z_perturbed = z_perturbed.view_as(z).detach()
+        z = z.repeat(ne, 1).view(b, ne, -1).detach()
+        z = self._shrink_z(z)
+        # z_perturbed = z_perturbed.view_as(z).detach()
 
         similarity = []
         success = []
@@ -222,7 +251,7 @@ class Benchmark:
             norm_sort = torch.argsort(norm)
             z_perturbed_sorted = z_perturbed[norm_sort]
 
-            eps = 0.05
+            eps = 0.01
             idx = []
             for j, exp in enumerate(z_perturbed_sorted):
                 exp = exp[None]
@@ -304,7 +333,7 @@ class Benchmark:
             logits_perturbed = self.classifier.model(decoded)
 
             z_perturbed = z_perturbed.view(b, -1, c)
-            successful_cf = self._get_successful_cf(z_perturbed, logits_perturbed)
+            successful_cf, z_perturbed = self._get_successful_cf(z_perturbed, logits_perturbed)
             similarity, success, idxs = self._compute_metrics(latents, z_perturbed, successful_cf)
 
             metrics = {"similarity": similarity, "success": success}
