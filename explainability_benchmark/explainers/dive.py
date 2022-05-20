@@ -2,24 +2,20 @@ import torch
 import torch.nn.functional as F
 from sklearn.cluster import SpectralClustering
 from tqdm import tqdm
-from .base import ExplainerBase, LatentExplainerBase
-
-
-torch.backends.cudnn.benchmark = True
+from .base import ExplainerBase
 
 
 class Dive(ExplainerBase):
     """Main class to generate counterfactuals"""
 
     def __init__(self, encoder, generator, classifier, train_loader, num_explanations=8,
-                 diversity_weight=1, data_path="data", lr=0.01, lasso_weight=10, reconstruction_weight=5, max_iters=20,
+                 diversity_weight=0, lr=0.05, lasso_weight=0.01, reconstruction_weight=0.1, max_iters=20,
                  method="fisher_spectral"):
 
         """Constructor
         Args:
         exp_dict (dict): hyperparameter dictionary
         savedir (str): root path to experiment directory
-        data_path (str): root path to datasets and pretrained models
         """
 
         super().__init__()
@@ -94,31 +90,11 @@ class Dive(ExplainerBase):
             dict: a dictionary containing the whole attack history
         """
 
-        # # TODO this is hacky
+        # TODO this is hacky
         if not self.cache:
             self.read_or_write_fim()
             self.cache = True
 
-        # import matplotlib.pyplot as plt
-        # lambda_range=np.linspace(0,1,10)
-        # fig, axs = plt.subplots(2,5, figsize=(15, 6))
-        # fig.subplots_adjust(hspace = .5, wspace=.001)
-        # axs = axs.ravel()
-        # att_1 = categorical_att[0].unsqueeze(0)
-        # att_1[:, 1] = np.random.choice(list(range(0, 1072)))
-        # att_2 = att_1.clone()
-        # att_2[:, 1] = np.random.choice(list(range(0, 1072)))
-        # import matplotlib
-        # matplotlib.use("TKAgg")
-        # for ind, l in enumerate(lambda_range):
-        #     latent_1 = self.generator.model.embed_attributes(att_1, continuous_att[0].unsqueeze(0))
-        #     latent_2 = self.generator.model.embed_attributes(att_2, continuous_att[0].unsqueeze(0))
-        #     inter_latent = latent_1 * l + (1 - l) * latent_2
-        #     inter_image = self.generator.model.decode(inter_latent)
-        #     image = inter_image.clamp(0, 1).view(3, 32, 32).permute(1, 2, 0).cpu().detach().numpy()
-        #     axs[ind].imshow(image, cmap='gray')
-        #     axs[ind].set_title('lambda_val='+str(round(l,1)))
-        # plt.show()
         b, c = latents.size()
 
         predicted_labels = torch.sigmoid(logits)
@@ -180,11 +156,7 @@ class Dive(ExplainerBase):
 
     def compute_lasso_regularizer(self, z_perturbed, latents):
         latents = latents[:, None, :]
-        # TODO temporary
-        lasso_c = torch.abs(z_perturbed[..., :128] - latents[..., :128]).mean()
-        lasso_f = torch.abs(z_perturbed[..., 128:256] - latents[..., 128:256]).mean()
-        lasso_cont = torch.abs(z_perturbed[..., 256:] - latents[..., 256:]).mean()
-        lasso_regularizer = lasso_cont + lasso_f + lasso_c
+        lasso_regularizer = torch.abs(z_perturbed - latents).sum()
         return (lasso_regularizer * self.lasso_weight).item()
 
 

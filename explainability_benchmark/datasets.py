@@ -306,6 +306,7 @@ class GeneratedSynbols:
         with h5py.File(path, 'r') as data:
             self.x = data['x'][...]
             y = data['y'][...]
+            self.correlated = data["correlated_att"][...]
             print("Converting json strings to labels...")
             with multiprocessing.Pool(8) as pool:
                 self.y = pool.map(json.loads, y)
@@ -342,6 +343,7 @@ class GeneratedSynbols:
             else:
                 self.raw_labels = None
 
+            # self._y = self.generate_labels()
             self.y = data["labels"][...]
             print("Done reading hdf5.")
 
@@ -372,6 +374,7 @@ class SynbolsSplit(Dataset):
     def __init__(self, dataset, split, transform=None):
         self.path = dataset.path
         self.mask = dataset.mask
+        self.dataset = dataset
         self.return_attributes = dataset.return_attributes
         self.raw_labelset = dataset.raw_labelset
         self.raw_labels = dataset.raw_labels
@@ -409,21 +412,6 @@ class SynbolsSplit(Dataset):
         if self.raw_labels is not None:
             self.raw_labels = np.array(self.raw_labels)[indices]
 
-    def oracle(self, z, decoder):
-
-        weights = decoder.char_embedding.weight
-        weights = weights[None, ...]
-        # first 128 are the embedding of char class
-        z = z[:, None, :128]
-
-        preds = torch.linalg.norm(weights - z, dim=-1).argmin(-1)
-        ones = preds % 2 == 1
-        oracle_labels = torch.zeros_like(preds)
-        oracle_labels[ones] = 1
-
-
-        return oracle_labels
-
     def __getitem__(self, item):
         if self.raw_labels is None or not self.return_attributes:
             return self.transform(self.x[item]), self.y[item]
@@ -441,7 +429,6 @@ class SynbolsSplit(Dataset):
 
             else:
                 continuous_att.append(att)
-
 
         return self.transform(self.x[item]), self.y[item], torch.tensor(categorical_att), torch.tensor(continuous_att)
 

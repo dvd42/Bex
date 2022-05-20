@@ -11,13 +11,22 @@ class MLP(torch.nn.Module):
     def __init__(self, exp_dict):
         super().__init__()
         self.exp_dict = exp_dict
-        self.model = get_backbone(exp_dict)
+        # self.model = get_backbone(exp_dict)
+        self.model = torch.nn.Sequential(torch.nn.Linear(46, 128, bias=False), torch.nn.BatchNorm1d(128), torch.nn.ReLU(),
+                                                         torch.nn.Linear(128, 128, bias=False),
+                                                         torch.nn.BatchNorm1d(128),
+                                                         torch.nn.ReLU(), torch.nn.Linear(128, 2))
         self.model.cuda()
 
         self.optimizer = torch.optim.AdamW(self.model.parameters(), betas=(0.9, 0.999),
                                            lr=self.exp_dict["lr"], weight_decay=self.exp_dict["weight_decay"])
         if self.exp_dict["weights"] is not None:
             self.load_state_dict(hu.torch_load(self.exp_dict["weights"]))
+
+        self.generator = get_backbone(exp_dict["generator"]).eval().cuda()
+        weights = hu.torch_load(exp_dict["generator"]["weights"])
+        self.generator.char_embedding.load_state_dict(weights["char_embedding"])
+        self.generator.font_embedding.load_state_dict(weights["font_embedding"])
 
 
     def train_on_loader(self, epoch, data_loader):
@@ -57,38 +66,46 @@ class MLP(torch.nn.Module):
 
     def train_on_batch(self, epoch, batch):
 
-        x, y = batch
+        x, y, categorical_att, continuous_att = batch
         b = x.size(0)
 
-        x = x.cuda()
         y = y.cuda()
+        categorical_att = categorical_att.cuda()
+        continuous_att = continuous_att.cuda()
+        with torch.no_grad():
+            # z = torch.cat((categorical_att, continuous_att), 1)
+            z = self.generator.embed_attributes(categorical_att, continuous_att)
 
         self.optimizer.zero_grad()
 
-        out = self.model(x)
+        out = self.model(z)
 
         loss = F.cross_entropy(out, y)
         loss.backward()
         self.optimizer.step()
 
         acc = (out.argmax(1) == y).sum() / b
+        # print(acc)
 
         return dict(loss=loss.item(), accuracy=float(acc))
 
 
     def val_on_batch(self, epoch, batch_idx, batch):
 
-        x, y = batch
+        x, y, categorical_att, continuous_att = batch
         b = x.size(0)
 
-        x = x.cuda()
         y = y.cuda()
+        categorical_att = categorical_att.cuda()
+        continuous_att = continuous_att.cuda()
+        z = self.generator.embed_attributes(categorical_att, continuous_att)
 
-        out = self.model(x)
+        out = self.model(z)
 
         loss = F.cross_entropy(out, y)
 
         acc = (out.argmax(1) == y).sum() / b
+        # print(acc)
 
         return dict(loss=loss.item(), accuracy=float(acc))
 

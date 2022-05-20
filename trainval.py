@@ -17,24 +17,22 @@ import pandas as pd
 import pprint
 import torch
 import numpy as np
-torch.backends.cudnn.benchmark = True
 
 
-def report_and_save(score_list, model, score_list_path, model_path, savedir):
+def report_and_save(score_list, model, model_path, savedir):
 
     score_df = pd.DataFrame(score_list)
     print("\n", score_df.tail())
     hu.torch_save(model_path, model.get_state_dict())
-    hu.save_pkl(score_list_path, score_list)
     print("Checkpoint Saved: %s" % savedir)
 
 
-def trainval(exp_dict, exp_group_name, savedir_base, data_root, reset=False):
+def trainval(exp_dict, exp_group_name, savedir, data_root, corr, n_clusters, reset=False):
+    torch.backends.cudnn.benchmark = True
     # bookkeeping
     # ---------------
     # get experiment directory
     exp_id = hu.hash_dict(exp_dict)
-    savedir = os.path.join(savedir_base, exp_id)
 
     np.random.seed(exp_dict["seed"])
     torch.manual_seed(exp_dict["seed"])
@@ -44,10 +42,12 @@ def trainval(exp_dict, exp_group_name, savedir_base, data_root, reset=False):
         hc.delete_experiment(savedir, backup_flag=True)
 
     # create folder and save the experiment dictionary
+    if "generator" in exp_dict:
+        exp_dict["generator"]["weights"] = os.path.join(data_root, exp_dict["generator"]["weights"])
     os.makedirs(savedir, exist_ok=True)
-    hu.save_json(os.path.join(savedir, "exp_dict.json"), exp_dict)
+    exp_dict["weights"] = None
     pprint.pprint(exp_dict)
-    print("Experiment saved in %s" % savedir)
+    print("Model saved in %s" % savedir)
 
     # Dataset
     # -----------
@@ -70,16 +70,10 @@ def trainval(exp_dict, exp_group_name, savedir_base, data_root, reset=False):
 
     # Checkpoint
     # -----------
-    model_path = os.path.join(savedir, "model.pth")
-    score_list_path = os.path.join(savedir, "score_list.pkl")
 
-    if os.path.exists(score_list_path):
-        score_list = hu.load_pkl(score_list_path)
-        epoch = score_list[-1]["epoch"] + 1
-
-    else:
-        score_list = []
-        epoch = 0
+    model_path = os.path.join(savedir, f"{exp_group_name}_corr{corr}_n_clusters{n_clusters}.pth")
+    score_list = []
+    epoch = 0
 
     # Train & Val
     # ------------
@@ -97,7 +91,7 @@ def trainval(exp_dict, exp_group_name, savedir_base, data_root, reset=False):
         score_dict["epoch"] = e
 
         score_list += [score_dict]
-        report_and_save(score_list, model, score_list_path, model_path, savedir)
+        report_and_save(score_list, model, model_path, savedir)
 
 
     print('experiment completed')
@@ -107,36 +101,30 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     parser.add_argument('-e', '--exp_group_list', nargs="+")
-    parser.add_argument('-sb', '--savedir_base', required=True)
+    parser.add_argument('-sb', '--savedir', required=True)
     parser.add_argument('-d', '--data_root', default="", type=str)
     parser.add_argument("-r", "--reset",  default=0, type=int)
     parser.add_argument("-ei", "--exp_id", default=None)
     parser.add_argument("-j", "--run_jobs", default=0, type=int)
     parser.add_argument("-nw", "--num_workers", type=int, default=0)
+    parser.add_argument("--corr_level", type=float, default=0.95)
+    parser.add_argument("--n_clusters_att", type=int, default=2)
 
     args = parser.parse_args()
 
     # Collect experiments
     # -------------------
-    if args.exp_id is not None:
-        # select one experiment
-        savedir = os.path.join(args.savedir_base, args.exp_id)
-        exp_dict = hu.load_json(os.path.join(savedir, "exp_dict.json"))
 
-        exp_list = [exp_dict]
-
-    else:
-        # select exp group
-        exp_list = []
-        for exp_group_name in args.exp_group_list:
+    exp_list = []
+    for exp_group_name in args.exp_group_list:
             exp_list.append(default_configs[exp_group_name])
 
 
     # run experiments
     for exp_group_name, exp_dict in zip(args.exp_group_list, exp_list):
         # do trainval
-        trainval(exp_dict=exp_dict,
-                 exp_group_name=exp_group_name,
-                savedir_base=args.savedir_base,
-                data_root=args.data_root,
-                reset=args.reset)
+        exp_dict["dataset"]["name"] += f"_corr{args.corr_level}_n_clusters{args.n_clusters_att}.h5py"
+
+        trainval(exp_dict=exp_dict, exp_group_name=exp_group_name, savedir=args.savedir,
+                 data_root=args.data_root, corr=args.corr_level,
+                 n_clusters=args.n_clusters_att, reset=args.reset)

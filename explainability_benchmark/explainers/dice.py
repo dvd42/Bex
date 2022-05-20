@@ -2,18 +2,14 @@ import torch
 import numpy as np
 from tqdm import tqdm
 
-from .base import ExplainerBase
-
-torch.backends.cudnn.benchmark = True
-
+from .base import ExplainerBase, LatentExplainerBase
 
 class Dice(ExplainerBase):
 
-    def __init__(self, num_explanations=8, proximity_weight=0.5, data_path="data", diversity_weight=1.0, yloss_type="hinge_loss", diversity_loss_type="dpp_style:inverse_dist", lr=0.01, max_iters=500, loss_diff_thres=1e-3, init_near_query_instance=True, stopping_threshold=0.5):
+    def __init__(self, num_explanations=8, proximity_weight=0.1, diversity_weight=0.1, yloss_type="hinge_loss", diversity_loss_type="dpp_style:inverse_dist", lr=0.1, max_iters=100, init_near_query_instance=True, stopping_threshold=0.5, use_mad=True):
 
         super().__init__()
 
-        self.data_path = data_path
         self.num_explanations = num_explanations
         self.proximity_weight = proximity_weight
         self.diversity_weight = diversity_weight
@@ -24,7 +20,7 @@ class Dice(ExplainerBase):
         self.stopping_threshold = stopping_threshold
         self.cache = False
         self.max_iters = max_iters
-        self.loss_diff_thres = loss_diff_thres
+        self.use_mad = use_mad
 
 
     def _read_or_write_mads(self):
@@ -76,7 +72,7 @@ class Dice(ExplainerBase):
 
 
         # TODO this is hacky
-        if not self.cache:
+        if not self.cache and self.use_mad:
             self._read_or_write_mads()
             self.cache = True
 
@@ -88,7 +84,7 @@ class Dice(ExplainerBase):
         if not self.init_near_query_instance:
             cf_instances = torch.rand(b, self.num_explanations, c)
         else: # initialize around the query instances
-            cf_instances = latents.repeat(self.num_explanations, 1).view(b, -1, c)
+            cf_instances = latents[:, None, :].repeat(1, self.num_explanations, 1).view(b, -1, c)
             for i in range(1, self.num_explanations):
                 cf_instances[:, i] = cf_instances[:, i] + 0.01 * i
 
@@ -98,12 +94,11 @@ class Dice(ExplainerBase):
         # self.yloss_type = yloss_type
         # self.diversity_loss_type = diversity_loss_type
 
-        # self.feature_weights_list = np.ones((1, query_instance.shape[1]))
-        mads = self.mads.cuda()
-
-        inverse_mads = 1 / mads
-        # inverse_mads = np.round(inverse_mads, 2)
-        self.feature_weights_list = inverse_mads
+        self.feature_weights_list = torch.ones(c).cuda()
+        if self.use_mad:
+            mads = self.mads.cuda()
+            inverse_mads = 1 / (mads + 1e-3)
+            self.feature_weights_list = inverse_mads
 
         optimizer = torch.optim.Adam([cf_instances], lr=self.lr)
 
@@ -132,6 +127,7 @@ class Dice(ExplainerBase):
         loss_diff = float("inf")
         prev_loss = 0
         logits = None
+        self.patience = 10
         pbar = tqdm(total=self.max_iters)
         while self.stop_loop(iterations, loss_diff, logits) is False:
 
@@ -257,11 +253,12 @@ class Dice(ExplainerBase):
         """Determines the stopping condition for gradient descent."""
 
         # stop GD if max iter is reached
-        if itr >= self.max_iters:
+        if itr >= self.max_iters or self.patience == 0:
             return True
 
         # else stop when loss diff is small & all CFs are valid (less or greater than a stopping threshold)
-        if loss_diff <= self.loss_diff_thres:
+        if loss_diff <= 1e-3:
+            self.patience -= 1
             test_preds = torch.sigmoid(test_preds)
             test_preds = torch.where(self.target_cf_class == 0, test_preds[:, 0], test_preds[:, 1])
             if (test_preds > self.stopping_threshold).all():

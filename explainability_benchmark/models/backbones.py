@@ -434,10 +434,10 @@ class Generator(torch.nn.Module):
         mlp_depth = self.exp_dict["backbone"]["mlp_depth"]
         n_continuous = exp_dict["dataset"]["n_continuous"]
 
-        self.char_embedding = torch.nn.Embedding(48, self.z_dim)
-        self.font_embedding = torch.nn.Embedding(1072, self.z_dim)
+        self.char_embedding = torch.nn.Embedding(48, 3)
+        self.font_embedding = torch.nn.Embedding(1072, 256)
 
-        self.decoder = Decoder(n_continuous + self.z_dim * 2,
+        self.decoder = Decoder(n_continuous + 3 + 256,
                                 self.channels_width,
                                 in_ch=1,
                                 ratio=self.ratio,

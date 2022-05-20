@@ -1,3 +1,4 @@
+from typing import Iterable
 import os
 import logging
 from datetime import datetime
@@ -6,7 +7,9 @@ import torch
 import pandas as pd
 import matplotlib.pyplot as plt
 from torchvision.utils import make_grid
+from sklearn.metrics import auc
 import wandb
+import cv2
 
 class BasicLogger:
 
@@ -22,10 +25,9 @@ class BasicLogger:
 
         if self.path is None:
             root = "output"
-            now = datetime.now().strftime("%Y%m%d_%H%M%S")
+            now = datetime.now().strftime("%Y_%m_%d_%H:%M:%S")
             self.path = os.path.join(root, now)
-        if not os.path.exists(self.path):
-            os.makedirs(self.path)
+            os.makedirs(self.path, exist_ok=True)
 
 
     def accumulate(self, data, images):
@@ -57,11 +59,12 @@ class BasicLogger:
 
         # for i, batch in enumerate(self.tensor_images.chunk(len(self.images))):
             b = samples.size(0)
-            grid = make_grid(samples, nrow=1).permute(1, 2, 0).numpy()
+            grid = make_grid(samples, nrow=b).permute(1, 2, 0).numpy()
             cfs_grid = make_grid(cfs, nrow=b).permute(1, 2, 0).numpy()
-            ax[i, 0].imshow(grid)
+            cfs_grid = cv2.cvtColor(cfs_grid, cv2.COLOR_RGB2GRAY)
+            ax[i, 0].imshow(grid, cmap="gray")
             ax[i, 0].set_axis_off()
-            ax[i, 1].imshow(cfs_grid)
+            ax[i, 1].imshow(cfs_grid, cmap="gray")
             ax[i, 1].set_axis_off()
 
         self._figure = f
@@ -69,18 +72,26 @@ class BasicLogger:
 
     def log(self):
 
-        ret = {k: np.mean(v) for k,v in self.metrics.items()}
-        self.metrics = ret
+        ret = {f"{k}_avg": np.mean(v) for k,v in self.metrics.items()}
+        self.metrics.update(ret)
 
         if self.log_images:
             self._prepare_images_to_log()
-            self._figure.savefig(os.path.join(self.path, "counterfactuals.png"), bbox_inches="tight")
+            if self._figure is not None:
+                self._figure.savefig(os.path.join(self.path, "counterfactuals.png"), bbox_inches="tight")
 
 
-        pd.DataFrame({**self.attributes, **self.metrics}, index=[0]).to_csv(os.path.join(self.path, "results.csv"))
+        df = pd.DataFrame.from_dict({**self.attributes, **self.metrics}, orient="index")
+        df.transpose().to_csv(os.path.join(self.path, "results.csv"))
 
+    def clean_metrics(self):
+        # remove list entries for a cleaner summary
+        for k in list(self.metrics):
+            if isinstance(self.metrics[k], Iterable):
+                self.metrics.pop(k)
 
     def cleanup(self):
+
         if self._figure is not None:
             plt.close(self._figure)
 
@@ -92,14 +103,31 @@ class WandbLogger(BasicLogger):
 
         super().__init__(attributes, path, log_images, n_batches)
 
-        wandb.init(project="Synbols-benchmark", dir=self.path, config=self.attributes, reinit=True)
+        wandb.init(project="Synbols-benchmark", dir=self.path, config=self.attributes, reinit=True,
+                   tags=["exp"])
+
+
+    def accumulate(self, data, images):
+
+        super().accumulate(data, images)
+
+        wandb.log({f"{k}" :v for k, v in data.items()}, commit=True)
 
 
     def log(self):
 
-        ret = {k: np.mean(v) for k,v in self.metrics.items()}
-        self.metrics = ret
-        wandb.log(self.metrics)
+        mins = self.metrics.pop("min")
+        maxs = self.metrics.pop("max")
+        means = self.metrics.pop("mean")
+        stds = self.metrics.pop("std")
+
+        ret = {f"{k}_avg": np.mean(v) for k, v in self.metrics.items() if "auc" not in k}
+        wandb.log(ret)
+        wandb.log({"AUC": self.metrics["auc"]})
+        data = [[x, y] for (x, y) in zip(self.metrics["auc_x"], self.metrics["auc_y"])]
+        table = wandb.Table(data=data, columns=["similarity", "success"])
+        wandb.log({"AUC_curve" : wandb.plot.line(table, "similarity", "success")})
+        wandb.log({"min": min(mins), "max": max(maxs), "mean": np.mean(np.array(means)), "std": np.mean(np.array(stds))})
 
         if self.log_images:
             self._prepare_images_to_log()

@@ -20,15 +20,19 @@ class ExplainerBase:
     def read_cache(self):
 
         print("Loading from %s" % self.digest)
-        self.loaded_data = h5py.File(self.digest, 'a')
+        self.loaded_data = h5py.File(self.digest, 'a', swmr=True)
         try:
             self.logits = torch.from_numpy(self.loaded_data['val_logits'][...])
             self.mus = torch.from_numpy(self.loaded_data['val_mus'][...])
             self.train_mus = torch.from_numpy(self.loaded_data['train_mus'][...])
-            self.latent_mean = self.train_mus.mean()
-            self.latent_std = self.train_mus.std()
+            self.latent_mean = self.train_mus.mean(0)
+            self.latent_std = self.train_mus.std(0)
+            self.latent_std[self.latent_std == 0] = 1
             # normalize latents with the training statistics
             self.mus = (self.mus - self.latent_mean) / self.latent_std
+            self.mus_min = self.mus.min(0)[0]
+            self.mus_max = self.mus.max(0)[0]
+
 
         except:
             print("Data not found in the hdf5 cache")
@@ -91,7 +95,6 @@ class LatentExplainerBase:
         self.data_path = None
         self.num_classes = 2
 
-
         self.digest = None
 
 
@@ -101,37 +104,43 @@ class LatentExplainerBase:
         self.loaded_data = h5py.File(self.digest, 'a')
         try:
             self.logits = torch.from_numpy(self.loaded_data['val_logits'][...])
-            self.mus = val_dataset.x
-            self.train_mus = train_dataset.x
-            # self.latent_mean = self.train_mus.mean()
-            # self.latent_std = self.train_mus.std()
+            self.mus = torch.from_numpy(self.loaded_data['val_mus'][...])
+            self.train_mus = torch.from_numpy(self.loaded_data['train_mus'][...])
+            self.latent_mean = self.train_mus.mean()
+            self.latent_std = self.train_mus.std()
             # normalize latents with the training statistics
-            # self.mus = (self.mus - self.latent_mean) / self.latent_std
+            self.mus = (self.mus - self.latent_mean) / self.latent_std
+            self.mus_min = self.mus.min(0)[0]
+            self.mus_max = self.mus.max(0)[0]
 
         except:
             print("Data not found in the hdf5 cache")
 
 
-    def write_cache(self, loader, classifier):
+    def write_cache(self, loader, encoder, classifier, prefix):
 
         """Loops through the data and stores latents """
 
         preds = []
         mus = []
-        for idx, x, y in tqdm(loader):
+        for idx, x, y, categorical_att, continuous_att in tqdm(loader):
             with torch.no_grad():
-                x = x.cuda()
-                logits = classifier(x)
-                preds.append(logits.data.cpu().numpy())
+                categorical_att = categorical_att.cuda()
+                continuous_att = continuous_att.cuda()
+                z = encoder(categorical_att, continuous_att)
+                mus.append(z.cpu().numpy())
 
-        # to_save = dict(mus=np.concatenate(mus, 0))
-        # if "train" not in prefix:
-        to_save = {}
-        to_save["logits"] = np.concatenate(preds, 0)
+                if "train" not in prefix:
+                    logits = classifier(z)
+                    preds.append(logits.data.cpu().numpy())
+
+        to_save = dict(mus=np.concatenate(mus, 0))
+        if "train" not in prefix:
+            to_save["logits"] = np.concatenate(preds, 0)
 
         with h5py.File(self.digest, 'a') as outfile:
             for k, v in to_save.items():
-                outfile[f"val_{k}"] = v
+                outfile[f"{prefix}_{k}"] = v
                 print("Done.")
 
     def get_latents(self, idx):
