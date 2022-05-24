@@ -81,21 +81,20 @@ for run in range(n_trials):
         exps.append(deepcopy(method_exp))
 
 
-# random_search = dice # default hparams
-# n_trials = 20
-# max_iters_space = [50, 100]
-# mad_space = [False, True]
-# proximity_space = reconstruction_space
+random_search = dice # default hparams
+n_trials = 20
+max_iters_space = [50, 100]
+mad_space = [False, True]
+proximity_space = reconstruction_space
 
-# exps = []
-# base_exp = deepcopy(random_search)
-# for run in range(n_trials):
-#     base_exp['lr'] = float(np.random.choice(lr_space))
-#     base_exp['diversity_weight'] = float(np.random.choice(diversity_space))
-#     base_exp['proximity_weight'] = float(np.random.choice(proximity_space))
-#     base_exp['use_mad'] = np.random.choice(mad_space)
-#     base_exp['max_iters'] = np.random.choice(max_iters_space)
-#     exps.append(deepcopy(base_exp))
+base_exp = deepcopy(random_search)
+for run in range(n_trials):
+    base_exp['lr'] = float(np.random.choice(lr_space))
+    base_exp['diversity_weight'] = float(np.random.choice(diversity_space))
+    base_exp['proximity_weight'] = float(np.random.choice(proximity_space))
+    base_exp['use_mad'] = np.random.choice(mad_space)
+    base_exp['max_iters'] = np.random.choice(max_iters_space)
+    exps.append(deepcopy(base_exp))
 
 
 # random_search = stylex
@@ -120,7 +119,7 @@ for run in range(n_trials):
 # candidate_space = [5, 15, 100, 1000]
 # first_radius_space = [0.1, 0.5, 1, 5, 10]
 # decrease_radius_space = [2, 5, 10, 15]
-# caps_space =[None, (-1, 1), (-5, 5)]
+# caps_space =[None, 1, 5]
 
 # base_exp = deepcopy(random_search)
 # for run in range(n_trials):
@@ -153,5 +152,6 @@ for run in range(n_trials):
     base_exp['reconstruction_weight'] = float(np.random.choice(reconstruction_space))
     exps.append(deepcopy(base_exp))
 
+print(exps)
 EXP_GROUPS = {}
 EXP_GROUPS['random_search'] = exps

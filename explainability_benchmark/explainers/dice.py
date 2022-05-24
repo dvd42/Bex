@@ -2,11 +2,12 @@ import torch
 import numpy as np
 from tqdm import tqdm
 
-from .base import ExplainerBase, LatentExplainerBase
+from .base import ExplainerBase
+
 
 class Dice(ExplainerBase):
 
-    def __init__(self, num_explanations=8, proximity_weight=0.1, diversity_weight=0.1, yloss_type="hinge_loss", diversity_loss_type="dpp_style:inverse_dist", lr=0.1, max_iters=100, init_near_query_instance=True, stopping_threshold=0.5, use_mad=True):
+    def __init__(self, num_explanations=8, proximity_weight=10, diversity_weight=0, yloss_type="hinge_loss", diversity_loss_type="dpp_style:inverse_dist", lr=0.01, max_iters=100, init_near_query_instance=True, stopping_threshold=0.5, use_mad=True):
 
         super().__init__()
 
@@ -104,7 +105,7 @@ class Dice(ExplainerBase):
 
 
         self.target_cf_class = 1 - logits.max(1)[1]
-        self.target_cf_class = self.target_cf_class.repeat(self.num_explanations)
+        self.target_cf_class = self.target_cf_class[:, None].repeat(1, self.num_explanations).view(-1)
 
         # self.min_iter = min_iter
         # self.max_iter = max_iter

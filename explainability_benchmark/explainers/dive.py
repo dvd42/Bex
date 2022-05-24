@@ -9,7 +9,7 @@ class Dive(ExplainerBase):
     """Main class to generate counterfactuals"""
 
     def __init__(self, encoder, generator, classifier, train_loader, num_explanations=8,
-                 diversity_weight=0, lr=0.05, lasso_weight=0.01, reconstruction_weight=0.1, max_iters=20,
+                 diversity_weight=0.001, lr=0.01, lasso_weight=0.1, reconstruction_weight=1, max_iters=20,
                  method="fisher_spectral"):
 
         """Constructor
@@ -111,6 +111,8 @@ class Dive(ExplainerBase):
 
         optimizer = torch.optim.Adam([epsilon], lr=self.lr, weight_decay=0)
 
+        predicted_labels = predicted_labels[:, None, :].repeat(1, num_explanations, 1).view(-1, logits.shape[1])
+        # predicted_labels = predicted_labels.repeat(num_explanations, 1).view(-1, logits.shape[1])
         for _ in range(self.max_iters):
             optimizer.zero_grad()
             regularizers = []
@@ -138,7 +140,7 @@ class Dive(ExplainerBase):
             regularizer = sum(regularizers)
 
             regularizer = regularizer / mask.repeat(repeat_dim, 1, 1).sum()
-            loss = self.compute_loss(logits, predicted_labels.repeat(num_explanations, 1), regularizer)
+            loss = self.compute_loss(logits, predicted_labels, regularizer)
 
             loss.backward()
             optimizer.step()

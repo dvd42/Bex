@@ -37,7 +37,7 @@ class DatasetWrapper(torch.utils.data.Dataset):
 
 class Benchmark:
 
-    def __init__(self, dataset="synbols_font", z_only=False, data_path="data", batch_size=12, log_images=True, n_samples=100, load_train=True,
+    def __init__(self, dataset="synbols_font", data_path="data", batch_size=12, log_images=True, n_samples=100, load_train=True,
                  norm=1, corr_level=0.5, n_clusters_att=2):
 
         self.data_path = data_path
@@ -50,8 +50,7 @@ class Benchmark:
         self.n_clusters_att = n_clusters_att
 
         self.norm = norm
-        self.z_only = z_only
-        self.classifier_name = "mlp" if z_only else "resnet"
+        self.classifier_name = "resnet"
         self.results = []
         self.current_config = {}
 
@@ -153,13 +152,8 @@ class Benchmark:
 
         if not os.path.isfile(explainer.digest):
             print(f"Caching latents to {explainer.digest}")
-            if self.z_only:
-                explainer.write_cache(self.train_loader, self.classifier.model, "train")
-                explainer.write_cache(self.val_loader, self.classifier.model)
-
-            else:
-                explainer.write_cache(self.train_loader, self.encoder, self.generator.model.decode, self.classifier.model, "train")
-                explainer.write_cache(self.val_loader, self.encoder, self.generator.model.decode, self.classifier.model, "val")
+            explainer.write_cache(self.train_loader, self.encoder, self.generator.model.decode, self.classifier.model, "train")
+            explainer.write_cache(self.val_loader, self.encoder, self.generator.model.decode, self.classifier.model, "val")
 
         explainer.read_cache()
 
@@ -317,10 +311,16 @@ class Benchmark:
         # first 3 are the embedding of char class
         z_char = z[:, None, :3]
         z_font = z[:, None, 3:259]
-        # char = torch.linalg.norm(weights_char - z_char, 2, dim=-1) * -1
-        # font = torch.linalg.norm(weights_font - z_font, 2, dim=-1) * -1
+        # char = torch.exp((torch.linalg.norm(weights_char - z_char, 2, dim=-1) * -10))
+        # font = torch.exp((torch.linalg.norm(weights_font - z_font, 2, dim=-1) * -10))
+        # char = torch.softmax((torch.linalg.norm(weights_char - z_char, 2, dim=-1) * -1), dim=-1)
+        # font = torch.softmax((torch.linalg.norm(weights_font - z_font, 2, dim=-1) * -1), dim=-1)
         char = torch.cosine_similarity(weights_char, z_char, dim=-1)
         font = torch.cosine_similarity(weights_font, z_font, dim=-1)
+        # char_max = torch.cosine_similarity(weights_char, z_char, dim=-1).argmax(-1)
+        # font_max = torch.cosine_similarity(weights_font, z_font, dim=-1).argmax(-1)
+        # font = torch.zeros(b * ne, 1072).cuda()
+        # font[torch.arange(b* ne), font_max] = 1
         z = torch.cat((char, font, z[:, 259:]), 1)
 
         return z.view(b, ne, -1)
@@ -363,11 +363,12 @@ class Benchmark:
             z_perturbed_sorted = z_perturbed[i][norm_sort]
             z_sorted = z[i][norm_sort]
 
-            tau = 0.1
+            tau = 0.05
             idx = []
             for j, (exp, latent) in enumerate(zip(z_perturbed_sorted, z_sorted)):
                 # exp[-6:] = latent[-6:] - exp[-6:]
                 # exp[:48] = latent[:48] - exp[:48]
+                # latent = latent - latent.mean()
                 exp = latent - exp
                 exp = exp[None]
                 if ortho_set.numel() == 0:
@@ -375,11 +376,6 @@ class Benchmark:
                     ortho_set = torch.cat((ortho_set, exp), 0)
 
                 else:
-                    # curr_font = exp[:, 48:48+1072].argmax().item()
-                    # select_from = correlation[0] if curr_font not in correlation[0] else correlation[1]
-                    # font = np.random.choice(select_from)
-                    # exp = latent.clone()[None]
-                    # exp[:, font] = 1
 
                     cos_sim = torch.cosine_similarity(exp, ortho_set)
                     if torch.all(cos_sim.abs() < tau) or torch.any(cos_sim < -1 + tau):
@@ -475,9 +471,6 @@ class Benchmark:
             b, c = latents.size()
 
             generator = self._get_generator_callable(explainer)
-            # if self.z_only:
-            #     z_perturbed = explainer.explain_batch(latents, logits, self.classifier.model)
-            # else:
             with torch.no_grad():
                 latents = self.encoder(categorical_att, continuous_att)
                 latents = (latents - explainer.latent_mean.cuda()) / explainer.latent_std.cuda()
