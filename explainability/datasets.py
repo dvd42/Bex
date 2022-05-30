@@ -375,6 +375,8 @@ class SynbolsSplit(Dataset):
         categorical_att = []
 
         for name, att in curr_labels.items():
+            if "pixel_noise" in name:
+                continue
             if len(self.raw_labelset[name]) > 1:
                 categorical_att.append(att)
 

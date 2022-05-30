@@ -18,7 +18,7 @@ def get_model(exp_dict, **kwargs):
     if exp_dict["model"] == "oracle":
         return Oracle(exp_dict)
     elif exp_dict["model"] == "generator":
-        return Generator(exp_dict, **kwargs)
+        return Generator(exp_dict)
     elif exp_dict["model"] == "tcvae":
         return TCVAE(exp_dict, **kwargs)
     elif exp_dict["model"] == "resnet":

@@ -2,7 +2,7 @@ from haven import haven_utils as hu
 
 solid = {
     "backend": "synbols_hdf5",
-    "n_continuous": 6,
+    "n_continuous": 5,
     "width": 32,
     "height": 32,
     "channels": 3,
@@ -15,11 +15,11 @@ solid = {
 
 solid_small = {
     "backend": "synbols_hdf5",
-    "n_continuous": 6,
+    "n_continuous": 5,
     "width": 32,
     "height": 32,
     "channels": 3,
-    "name": "non-camou-bw_n=100000_2021-Aug-31.h5py",
+    "name": "non-camou-bw_n=200000_2022-May-30.h5py",
     "task": "char",
     "augmentation": False,
     "mask": "random",
@@ -51,9 +51,9 @@ oracle_dict = {"lr": 0.001,
                 "seed": 123,
                 "model": "oracle",
                 "backbone": biggan_encoder,
-                "z_dim": 128,
-                "max_epoch": 200,
-                "dataset": solid}
+                "z_dim": 3,
+                "max_epoch": 100,
+                "dataset": solid_small}
 
 EXP_GROUPS = {}
 # Train generator
@@ -66,7 +66,7 @@ EXP_GROUPS["generator"] = hu.cartesian_exp_group({"lr": [0.001],
                         "lambda": 0.01,
                         "model": "generator",
                         "backbone": [biggan_decoder],
-                        "z_dim": [128],
-                        "max_epoch": 200,
+                        "z_dim": [3],
+                        "max_epoch": 100,
                         "alpha": [0.20],
-                        "dataset": [solid]})
+                        "dataset": [solid_small]})

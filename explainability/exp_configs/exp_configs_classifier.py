@@ -54,7 +54,7 @@ oracle_dict = {"lr": 0.001,
                 "weights": "pretrained_models/model/oracle2.pth",
                 "z_dim": 128,
                 "max_epoch": 200,
-                "dataset": solid}
+                "dataset": solid_small}
 
 generator_dict = {"lr": 0.001,
                 "weight_decay": 1e-4,
@@ -69,7 +69,7 @@ generator_dict = {"lr": 0.001,
                 "z_dim": 128,
                 "max_epoch": 200,
                 "alpha": 0.20,
-                "dataset": solid}
+                "dataset": solid_small}
 
 generated = {
     "backend": "generated_synbols",

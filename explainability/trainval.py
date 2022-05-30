@@ -57,6 +57,15 @@ def trainval(exp_dict, savedir_base, data_root, reset=False):
     train_dataset, val_dataset = get_dataset(['train', 'val'], data_root, exp_dict)
     # val_dataset = get_dataset('val', exp_dict)
 
+    # import matplotlib
+    # matplotlib.use("TkAgg")
+    # import matplotlib.pyplot as plt
+    # for i, x in enumerate(val_dataset.x):
+    #     print(val_dataset.raw_labels[i])
+    #     print(val_dataset.raw_labels[i]["font"])
+    #     plt.imshow(x)
+    #     plt.show()
+
     # train and val loader
     train_loader = DataLoader(train_dataset,
                                 batch_size=exp_dict['batch_size'],
@@ -69,7 +78,7 @@ def trainval(exp_dict, savedir_base, data_root, reset=False):
     # Model
     # -----------
     exp_dict["savedir_base"] = savedir_base
-    model = get_model(exp_dict, labelset=train_dataset.raw_labelset, writer=None)
+    model = get_model(exp_dict, writer=None)
     print("Model with:", sum(p.numel() for p in model.parameters() if p.requires_grad), "parameters")
 
     # Checkpoint
