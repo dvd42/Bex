@@ -7,7 +7,7 @@ from .base import ExplainerBase
 
 class Dice(ExplainerBase):
 
-    def __init__(self, num_explanations=8, proximity_weight=10, diversity_weight=0, yloss_type="hinge_loss", diversity_loss_type="dpp_style:inverse_dist", lr=0.01, max_iters=100, init_near_query_instance=True, stopping_threshold=0.5, use_mad=True):
+    def __init__(self, num_explanations=8, proximity_weight=1, diversity_weight=1, yloss_type="hinge_loss", diversity_loss_type="dpp_style:inverse_dist", lr=0.1, max_iters=50, init_near_query_instance=True, stopping_threshold=0.5, use_mad=True):
 
         super().__init__()
 

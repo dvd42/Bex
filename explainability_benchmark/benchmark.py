@@ -38,7 +38,7 @@ class DatasetWrapper(torch.utils.data.Dataset):
 class Benchmark:
 
     def __init__(self, dataset="synbols_font", data_path="data", batch_size=12, log_images=True, n_samples=100, load_train=True,
-                 norm=1, corr_level=0.5, n_clusters_att=2):
+                 r=1., corr_level=0.5, n_clusters_att=2):
 
         self.data_path = data_path
         self.log_images = log_images
@@ -48,8 +48,9 @@ class Benchmark:
         self.dataset_name = dataset
         self.corr_level = corr_level
         self.n_clusters_att = n_clusters_att
+        self._tau = 0.15
 
-        self.norm = norm
+        self.r = r
         self.classifier_name = "resnet"
         self.results = []
         self.current_config = {}
@@ -63,15 +64,6 @@ class Benchmark:
         print("Loading test data...")
         val_set = DatasetWrapper(get_dataset(["val"], self.data_path, dataset)[0])
         self.val_dataset = val_set
-        # import matplotlib
-        # matplotlib.use("TkAgg")
-        # import matplotlib.pyplot as plt
-        # for i, x in enumerate(val_set.dataset.x):
-        #     print(val_set.dataset.raw_labels[i]["font"])
-        #     print(val_set.dataset.raw_labels[i]["scale"])
-        #     print(val_set.dataset.y[i])
-        #     plt.imshow(x)
-        #     plt.show()
 
         generator = get_model("generator", self.data_path).eval()
         self.encoder = generator.model.embed_attributes
@@ -112,7 +104,7 @@ class Benchmark:
             att.pop("cache")
 
         att.pop("digest")
-        run_config = {"norm": self.norm,
+        run_config = {"r": self.r,
                       "n_clusters": self.n_clusters_att,
                       "corr_level": self.corr_level,
                       "dataset": self.dataset_name,
@@ -160,7 +152,6 @@ class Benchmark:
 
     def _prepare_batch(self, batch, explainer):
 
-        # idx, images, labels, _, _ = batch
         idx, images, labels, categorical_att, continuous_att = batch
         x = images.cuda()
         y = labels.cuda()
@@ -170,54 +161,6 @@ class Benchmark:
         latents = explainer.get_latents(idx)
         logits = explainer.get_logits(idx)
 
-        # import matplotlib.pyplot as plt
-        # lambda_range=np.linspace(0,1,10)
-        # # fig.subplots_adjust(hspace = .5, wspace=.001)
-        # # att_1 = categorical_att[0].unsqueeze(0)
-        # # att_1[:, 0] = np.random.choice(list(range(0, 48)))
-        # # att_2 = att_1.clone()
-        # # att_2[:, 0] = np.random.choice(list(range(0, 48)))
-        # att_1 = continuous_att[0].unsqueeze(0)
-        # att_2 = att_1.clone()
-        # att_1[:, 2] = 0.44
-        # att_2[:, 2] = 1.10
-        # # idx_to_name = {0: "inverse_color", 1: "pixel_noise_scale", 2:"scale", 3: "translation-x", 4:"translation-y", 5: "rotation"}
-        # import matplotlib
-        # import cv2
-        # imgs = []
-        # matplotlib.use("TKAgg")
-        # for ind, l in enumerate(lambda_range):
-        #     latent_1 = self.generator.model.embed_attributes(categorical_att[0][None], att_1)
-        #     latent_2 = self.generator.model.embed_attributes(categorical_att[0][None], att_2)
-        #     # latent_1 = self.generator.model.embed_attributes(att_1, continuous_att[0].unsqueeze(0))
-        #     # latent_2 = self.generator.model.embed_attributes(att_2, continuous_att[0].unsqueeze(0))
-        #     inter_latent = latent_1 * l + (1 - l) * latent_2
-        #     inter_image = self.generator.model.decode(inter_latent)
-        #     image = inter_image.clamp(0, 1).view(3, 32, 32).permute(1, 2, 0).cpu().detach().numpy()
-        #     image = cv2.cvtColor((image * 255).astype("uint8"), cv2.COLOR_RGB2GRAY)
-        #     imgs.append(image)
-        #     # axs[ind].imshow(image, cmap='gray')
-        #     # axs[ind].set_title('lambda_val='+str(round(l,1)))
-        #     # axs[ind].set_axis_off()
-        #     # axs[ind].autoscale(False)
-        # # plt.show()
-        # imgs = np.stack(imgs)
-        # ret = np.zeros((32, 329))
-        # for i in range(10):
-        #     ret[:, i * 33: i * 33 + 32] = imgs[i]
-
-        # plt.imshow(ret, cmap="gray")
-        # plt.show()
-
-        # save = input("Save image?")
-        # if save.lower() == "y":
-            # ax = plt.gca()
-            # ax.axes.yaxis.set_ticklabels([])
-            # ax.axes.xaxis.set_ticklabels([])
-            # name = input("name?")
-            # plt.imsave(name, ret[:, :-2], cmap="gray")
-
-
         return latents, logits, x, y, categorical_att, continuous_att
 
 
@@ -225,34 +168,60 @@ class Benchmark:
 
         def _generator(latents):
             latents = latents * explainer.latent_std.cuda() + explainer.latent_mean.cuda()
-            color_latent = latents[:, -6]
-            color_latent[color_latent > 0.5] = 1
-            color_latent[color_latent != 1] = 0
-            latents[:, -6] = color_latent
+            clipped = latents.clone()
+            for i in range(-6, 0):
+                lower = explainer.mus_min[i]
+                upper = explainer.mus_max[i]
+                clipped[..., i] = torch.clamp(latents[..., i], min=lower, max=upper)
+            # color_latent = latents[:, -6]
+            # color_latent[color_latent > 0.5] = 1
+            # color_latent[color_latent != 1] = 0
+            # clipped[:, -6] = color_latent
 
-            # total = latents[:, -6].numel()
-            # binary = (latents[:, -6] == 0).sum() + (latents[:, -6] == 1).sum()
-            # if total != binary:
-            #     import pudb; pudb.set_trace()  # BREAKPOINT
 
-
-            return self.generator.model.decode(latents)
+            return self.generator.model.decode(clipped)
 
         return _generator
 
-    # bound explanations to lr-ball
+    # bound perturbations to lr-ball
     def _bound_z(self, z_perturbed, latents, explainer):
 
+        weights_char = self.generator.model.char_embedding.weight.clone()
+        weights_font = self.generator.model.font_embedding.weight.clone()
+        weights_char = (weights_char - explainer.latent_mean[:3].cuda()) / explainer.latent_std[:3].cuda()
+        weights_font = (weights_font - explainer.latent_mean[3:259].cuda()) / explainer.latent_std[3:259].cuda()
         b, ne , c = z_perturbed.size()
         latents = latents[:, None, :].repeat(1, ne, 1).view(-1, c)
         z_perturbed = z_perturbed.view(-1 ,c)
-        r = 2 * explainer.mus_max.max()
-        # r = 2
         delta = z_perturbed - latents
-        # z_perturbed = latents + torch.clamp(delta, min=-r, max=r)
-        norm = torch.linalg.norm(delta, 1, -1) + 1e-6
-        r = torch.ones_like(norm) * r
+
+        # r = 2 * explainer.mus_max.max() # r = 2
+        # delta = z_perturbed - latents
+        # norm = torch.linalg.norm(delta, 1, -1) + 1e-6
+        # r = torch.ones_like(norm) * r
+        # delta = torch.minimum(norm, r)[:, None] * delta / norm[:, None]
+
+        # continuous attributes
+        # r_cont = explainer.mus_max[-6:].max()
+        r_cont = self.r
+        norm = torch.linalg.norm(delta[:, -6:], 1, -1) + 1e-6
+        r = torch.ones_like(norm) * r_cont
+        delta[:, -6:] = torch.minimum(norm, r)[:, None] * delta[:, -6:] / norm[:, None]
         delta = torch.minimum(norm, r)[:, None] * delta / norm[:, None]
+
+        # # # character
+        r_char = torch.cdist(weights_char, weights_char, p=1).max()
+        norm = torch.linalg.norm(delta[:, :3], 1, -1) + 1e-6
+        r = torch.ones_like(norm) * r_char
+        delta[:, :3] = torch.minimum(norm, r)[:, None] * delta[:, :3] / norm[:, None]
+
+        # # # font
+        r_font = torch.cdist(weights_font, weights_font, p=1).max()
+        norm = torch.linalg.norm(delta[:, 3:259], 1, -1) + 1e-6
+        r = torch.ones_like(norm) * r_font
+        delta[:, 3:259] = torch.minimum(norm, r)[:, None] * delta[:, 3:259] / norm[:, None]
+
+        z_perturbed = latents + delta
 
         return z_perturbed.view(b, ne, c)
 
@@ -267,13 +236,13 @@ class Benchmark:
         return z_perturbed
 
 
-    def _get_successful_cf(self, z_perturbed, z, perturbed_logits, logits):
+    def _get_successful_cf(self, z_perturbed, z, perturbed_logits, logits, explainer):
 
         b, ne, c = z_perturbed.size()
         z = z[:, None, :].repeat(1, ne, 1).view(b, ne, c)
         logits = logits[:, None, :].repeat(1, ne, 1).view(b * ne, -1)
-        z_perturbed = self._cosine_embedding(z_perturbed)
-        z = self._cosine_embedding(z)
+        z_perturbed = self._cosine_embedding(z_perturbed, explainer)
+        z = self._cosine_embedding(z, explainer)
         perturbed_preds = z_perturbed.view(-1, z_perturbed.size(-1))[:, :48].argmax(1)
         preds = z.view(-1, z.size(-1))[:, :48].argmax(1)
 
@@ -292,41 +261,39 @@ class Benchmark:
         E_agree = (classifier == oracle) & (perturbed_classifier == perturbed_oracle)
         successful_cf = (E_cc | E_causal_change) & ~E_agree
 
-        # mask1 = perturbed_classifier == classifier
-        # mask2 = (perturbed_oracle != oracle) & ~mask1
-        # mask3 = (classifier == oracle) & (perturbed_classifier == perturbed_oracle)
-        # successful_cf2 = (mask1 | mask2) & ~mask3
-
 
 
         return successful_cf, z_perturbed.view(b, ne, -1)
 
 
-    def _cosine_embedding(self, z):
+    def _cosine_embedding(self, z, explainer, binarize=False):
 
         b, ne, c = z.size()
         z = z.view(-1, c)
-        weights_char = self.generator.model.char_embedding.weight[None, ...]
-        weights_font = self.generator.model.font_embedding.weight[None, ...]
+        weights_char = self.generator.model.char_embedding.weight.clone()
+        weights_font = self.generator.model.font_embedding.weight.clone()
+        weights_char = (weights_char - explainer.latent_mean[:3].cuda()) / explainer.latent_std[:3].cuda()
+        weights_font = (weights_font - explainer.latent_mean[3:259].cuda()) / explainer.latent_std[3:259].cuda()
         # first 3 are the embedding of char class
+        # the next 256 font embedding
         z_char = z[:, None, :3]
         z_font = z[:, None, 3:259]
-        # char = torch.exp((torch.linalg.norm(weights_char - z_char, 2, dim=-1) * -10))
-        # font = torch.exp((torch.linalg.norm(weights_font - z_font, 2, dim=-1) * -10))
-        # char = torch.softmax((torch.linalg.norm(weights_char - z_char, 2, dim=-1) * -1), dim=-1)
-        # font = torch.softmax((torch.linalg.norm(weights_font - z_font, 2, dim=-1) * -1), dim=-1)
-        char = torch.cosine_similarity(weights_char, z_char, dim=-1)
-        font = torch.cosine_similarity(weights_font, z_font, dim=-1)
-        # char_max = torch.cosine_similarity(weights_char, z_char, dim=-1).argmax(-1)
-        # font_max = torch.cosine_similarity(weights_font, z_font, dim=-1).argmax(-1)
-        # font = torch.zeros(b * ne, 1072).cuda()
-        # font[torch.arange(b* ne), font_max] = 1
+        char = torch.softmax((torch.linalg.norm(weights_char[None, ...] - z_char, 2, dim=-1) * -1), dim=-1)
+        font = torch.softmax((torch.linalg.norm(weights_font[None, ...] - z_font, 2, dim=-1) * -1), dim=-1)
+        if binarize:
+            char_max = char.argmax(-1)
+            font_max = font.argmax(-1)
+            char = torch.zeros(b * ne, 48).cuda()
+            char[torch.arange(b * ne), char_max] = 1
+            font = torch.zeros(b * ne, 1072).cuda()
+            font[torch.arange(b* ne), font_max] = 1
+
         z = torch.cat((char, font, z[:, 259:]), 1)
 
         return z.view(b, ne, -1)
 
     @torch.no_grad()
-    def _compute_metrics(self, z, z_perturbed, successful_cf):
+    def _compute_metrics(self, z, z_perturbed, successful_cf, explainer):
 
         changes = {"min": 0, "max": 0, "mean": 0, "std": 0}
 
@@ -335,7 +302,7 @@ class Benchmark:
 
         b, ne, c = z_perturbed.size()
         z = z[:, None, :].repeat(1, ne, 1).view(b, ne, -1).detach()
-        z = self._cosine_embedding(z)
+        z = self._cosine_embedding(z, explainer, binarize=True)
         z_perturbed = z_perturbed.view_as(z).detach()
 
 
@@ -348,37 +315,36 @@ class Benchmark:
         similarity = []
         success = []
         idxs = []
-        correlated = self.val_dataset.dataset.dataset.correlated
-        n_corr = len(correlated) // 2
-        # correlation = (correlated[:n_corr], correlated[n_corr:])
-        # successful_cf[:] = True
         for i, samples in enumerate(successful_cf):
 
             if z[i][samples].numel() == 0:
                 continue
 
             ortho_set = torch.tensor([]).to(z_perturbed.device)
-            norm = torch.linalg.norm(z[i][samples] - z_perturbed[i][samples], ord=self.norm, dim=-1)
+            norm = torch.linalg.norm(z[i][samples] - z_perturbed[i][samples], ord=1, dim=-1)
             norm_sort = torch.argsort(norm)
             z_perturbed_sorted = z_perturbed[i][norm_sort]
             z_sorted = z[i][norm_sort]
 
-            tau = 0.05
             idx = []
             for j, (exp, latent) in enumerate(zip(z_perturbed_sorted, z_sorted)):
-                # exp[-6:] = latent[-6:] - exp[-6:]
-                # exp[:48] = latent[:48] - exp[:48]
-                # latent = latent - latent.mean()
-                exp = latent - exp
+
+                exp[-6:] = latent[-6:] - exp[-6:]
+                exp[:48+1072] = exp[:48+1072] * (1 - latent[:48+1072])
                 exp = exp[None]
+
                 if ortho_set.numel() == 0:
                     idx.append(j)
                     ortho_set = torch.cat((ortho_set, exp), 0)
 
                 else:
-
-                    cos_sim = torch.cosine_similarity(exp, ortho_set)
-                    if torch.all(cos_sim.abs() < tau) or torch.any(cos_sim < -1 + tau):
+                    # cos_sim = torch.cosine_similarity(exp, ortho_set)
+                    # cos_char = torch.cosine_similarity(exp[:, :48], ortho_set[:, :48])
+                    # cos_font = torch.cosine_similarity(exp[:, 48:48+1072], ortho_set[:, 48:48 + 1072])
+                    cos_discrete = torch.cosine_similarity(exp[:48+1072], ortho_set[:48+1072])
+                    cos_cont = torch.cosine_similarity(exp[:, -6:], ortho_set[:, -6:])
+                    cos_sim = cos_discrete + cos_cont
+                    if torch.all(cos_sim.abs() < self._tau) or torch.any(cos_sim < -1 + self._tau):
 
                         idx.append(j)
                         ortho_set = torch.cat((ortho_set, exp), 0)
@@ -479,35 +445,25 @@ class Benchmark:
             z_perturbed = explainer.explain_batch(latents, logits, x, self.classifier.model, generator)
             z_perturbed = z_perturbed.detach()
 
-            # import matplotlib.pyplot as plt
-            # import matplotlib
-            # matplotlib.use("TkAgg")
-
-            # for img, z in zip(x, z_perturbed[:, 0]):
-            #     plt.figure()
-            #     plt.imshow(img.permute(1, 2, 0).cpu().detach().numpy())
-            #     z = generator(z[None])[0]
-            #     plt.figure()
-            #     plt.imshow(z.permute(1, 2, 0).cpu().detach().numpy())
-            #     plt.show()
 
             self._build_histogram(z_perturbed, latents)
             z_perturbed = self._bound_z(z_perturbed, latents, explainer)
-            z_perturbed = self._clip_z(z_perturbed, explainer)
+            # z_perturbed = self._clip_z(z_perturbed, explainer)
 
             decoded = generator(z_perturbed.view(-1, c))
             logits_perturbed = self.classifier.model(decoded)
 
             z_perturbed = z_perturbed.view(b, -1, c)
-            successful_cf, z_perturbed = self._get_successful_cf(z_perturbed, latents, logits_perturbed, logits)
-            # successful_cf[:] = True
-            similarity, success, idxs, extra = self._compute_metrics(latents, z_perturbed, successful_cf)
+            successful_cf, z_perturbed = self._get_successful_cf(z_perturbed, latents, logits_perturbed, logits, explainer)
+            similarity, success, idxs, extra = self._compute_metrics(latents, z_perturbed, successful_cf, explainer)
+            n_cfs = (successful_cf.sum() / successful_cf.numel()).item()
 
 
             for k, v in extra.items():
                 changes[k].append(v)
 
-            metrics = {"similarity": similarity, "success": success}
+            metrics = {"similarity": similarity, "success": success, "n_cfs": n_cfs}
+            # metrics = {"similarity": similarity, "success": success}
             self._accumulate_log(logger, metrics, x, decoded, idxs)
 
         x, y, auc = self._compute_auc(logger.metrics)
@@ -523,55 +479,6 @@ class Benchmark:
         logger.clean_metrics()
         self.results.append({"explainer": self.current_config["explainer_name"], **logger.metrics, **logger.attributes})
         self._cleanup(explainer, logger)
-            # if successful_cf.sum() != 0:
-            #     b, ne, c = z_perturbed.size()
-            #     z = latents.repeat(ne, 1).view(-1, c)
-            #     # successful_cf[1:5] = True
-            #     # successful_cf[-1] = True
-            #     z_perturbed = z_perturbed.view(-1, c)
-            #     diff = (z_perturbed[successful_cf] - z[successful_cf]).abs()
-            #     value, idx = diff.sort(1)
-            #     b_coord, z_coord = torch.where(value < 0 + 0.05)
-
-            #     # create a batch with the smallest elements in each tensor incrementally set to 0
-            #     # and their corresponding labels
-            #     count = torch.unique(b_coord, return_counts=True)[1]
-            #     logits = logits.repeat(ne, 1)[successful_cf]
-            #     new_z = torch.cat([x.repeat(y, 1) for x, y in zip(z_perturbed[successful_cf], count)])
-            #     new_logits = torch.cat([x.repeat(y, 1) for x, y in zip(logits, count)])
-
-            #     start = 0
-            #     for c in count:
-            #         end = start + c
-            #         for j, cf in enumerate(new_z[start: end]):
-            #             cf[idx[b_coord, z_coord][start:start + j+1]] = 0.0
-
-                    # start = end
-                # ---------------
-                # new_successful_cf = self._get_successful_cf(new_z, new_logits)
-                # idxs_mask = []
-                # start = 0
-                # for i, c in enumerate(count):
-                #     end = start + c
-                #     idxs_mask.append(list(range(start, end)))
-                #     start = end
-
-                # new_successful_cf[1] = True
-                # new_successful_cf[2] = True
-                # new_successful_cf[3] = True
-                # new_successful_cf[4] = False
-                # new_successful_cf[-1] = True
-                # z_perturbed = z_perturbed[successful_cf]
-                # idxs = torch.where(new_successful_cf)[0]
-                # for i, mask in enumerate(idxs_mask):
-                #     for j in idxs:
-                #         if j in mask:
-                #             z_perturbed[i] = new_z[j]
-
-
-            # similarity, success = Benchmark._compute_metrics(latents, z_perturbed, successful_cf)
-
-
 
     def summarize(self):
         return pd.DataFrame(self.results)

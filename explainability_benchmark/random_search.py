@@ -26,7 +26,7 @@ xgem = {
 dice = {
         "explainer": "dice",
         "lr": 0.01,
-        "max_iters": 500,
+        "max_iters": 50,
         "proximity_weight": 0.5,
         "num_explanations": 8,
         "diversity_weight": 1,
@@ -43,7 +43,7 @@ lcf = { "explainer": "lcf",
         "lr": 0.1,
         "num_explanations": 8,
         "tolerance": 0.3,
-        "max_iters": 500,
+        "max_iters": 50,
         "p": 0.5
       }
 
@@ -59,9 +59,9 @@ stylex = { "explainer": "stylex",
 np.random.seed(0)
 
 random_search = dive # default hparams
-n_trials = 30
+n_trials = 40
 lasso_space = list([0.0001, 0.001, 0.01, 0.1, 1, 10])
-lr_space = [0.01, 0.05, 0.1]
+lr_space = [0.001, 0.01, 0.05, 0.1]
 diversity_space = [0] + list([0.001, 0.01, 0.1, 1, 10])
 reconstruction_space = [0] + list([0.0001, 0.001, 0.01, 0.1, 1, 10])
 
@@ -81,31 +81,27 @@ for run in range(n_trials):
         exps.append(deepcopy(method_exp))
 
 
-random_search = dice # default hparams
-n_trials = 20
-max_iters_space = [50, 100]
-mad_space = [False, True]
-proximity_space = reconstruction_space
+# random_search = dice # default hparams
+# n_trials = 40
+# proximity_space = reconstruction_space
 
-base_exp = deepcopy(random_search)
-for run in range(n_trials):
-    base_exp['lr'] = float(np.random.choice(lr_space))
-    base_exp['diversity_weight'] = float(np.random.choice(diversity_space))
-    base_exp['proximity_weight'] = float(np.random.choice(proximity_space))
-    base_exp['use_mad'] = np.random.choice(mad_space)
-    base_exp['max_iters'] = np.random.choice(max_iters_space)
-    exps.append(deepcopy(base_exp))
+# base_exp = deepcopy(random_search)
+# for run in range(n_trials):
+#     base_exp['lr'] = float(np.random.choice(lr_space))
+#     base_exp['diversity_weight'] = float(np.random.choice(diversity_space))
+#     base_exp['proximity_weight'] = float(np.random.choice(proximity_space))
+#     exps.append(deepcopy(base_exp))
 
 
 # random_search = stylex
-# n_trials = 20
-# t_space = [0.1, 0.3, 0.5]
-# shift_size_space = [0.1, 0.5, 1, 3]
+# n_trials = 40
+# t_space = [0.1, 0.3, 0.5, 0.7]
+# shift_size_space = [0.1, 0.5, 1, 2, 5, 10]
 # base_exp = deepcopy(random_search)
 # for run in range(n_trials):
 #     base_exp['t'] = float(np.random.choice(t_space))
 #     base_exp['shift_size'] = float(np.random.choice(shift_size_space))
-#     strategies = ["independent", "subset"]
+
 #     for strategy in strategies:
 #         strategy_exp = deepcopy(base_exp)
 #         strategy_exp['strategy'] = strategy
@@ -115,35 +111,34 @@ for run in range(n_trials):
 
 
 # random_search = gs
-# n_trials = 20
-# candidate_space = [5, 15, 100, 1000]
+# n_trials = 40
+# candidate_space = [5, 10, 100, 1000]
 # first_radius_space = [0.1, 0.5, 1, 5, 10]
 # decrease_radius_space = [2, 5, 10, 15]
-# caps_space =[None, 1, 5]
+# caps_space =[None, 1, 5, 10]
 
 # base_exp = deepcopy(random_search)
 # for run in range(n_trials):
 #     base_exp['n_candidates'] = np.random.choice(candidate_space)
 #     base_exp['first_radius'] = float(np.random.choice(first_radius_space))
 #     base_exp['decrease_radius'] = float(np.random.choice(decrease_radius_space))
-#     base_exp['caps'] = np.random.choice(np.array(caps_space, dtype=object))
-#     exps.append(deepcopy(base_exp))
+    # base_exp['caps'] = np.random.choice(np.array(caps_space, dtype=object))
+    # exps.append(deepcopy(base_exp))
 
 # random_search = lcf
-# n_trials = 20
-# p_space = [0.1, 0.5, 0.7]
-# tolerance_space = [0, 0.1, 0.3, 0.5]
+# n_trials = 40
+# p_space = [0, 0.1, 0.5, 0.7]
+# tolerance_space = [0, 0.1, 0.3, 0.5, 0.7]
 
 # base_exp = deepcopy(random_search)
 # for run in range(n_trials):
-#     base_exp['lr'] = float(np.random.choice(lr_space))
-#     base_exp['max_iters'] = np.random.choice(max_iters_space)
-#     base_exp['p'] = float(np.random.choice(p_space))
-#     base_exp["tolerance"] = float(np.random.choice(tolerance_space))
-#     exps.append(deepcopy(base_exp))
+    # base_exp['lr'] = float(np.random.choice(lr_space))
+    # base_exp['p'] = float(np.random.choice(p_space))
+    # base_exp["tolerance"] = float(np.random.choice(tolerance_space))
+    # exps.append(deepcopy(base_exp))
 
 random_search = xgem
-n_trials = 20
+n_trials = 40
 
 base_exp = deepcopy(random_search)
 for run in range(n_trials):

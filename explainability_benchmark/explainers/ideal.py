@@ -22,7 +22,7 @@ class IdealExplainer(ExplainerBase):
 
         targets = 1 - logits.argmax(1)
         n_corr = len(self.correlated_att) // 2
-        correlation = (self.correlated_att[0], self.correlated_att[0])
+        correlation = (self.correlated_att[:n_corr], self.correlated_att[n_corr:])
         z = latents[:, None, ].repeat(1, self.num_explanations, 1).clone()
 
         weights_font = self.generator.model.font_embedding.weight

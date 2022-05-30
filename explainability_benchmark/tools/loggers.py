@@ -27,7 +27,7 @@ class BasicLogger:
             root = "output"
             now = datetime.now().strftime("%Y_%m_%d_%H:%M:%S")
             self.path = os.path.join(root, now)
-            os.makedirs(self.path, exist_ok=True)
+        os.makedirs(self.path, exist_ok=True)
 
 
     def accumulate(self, data, images):
@@ -67,6 +67,9 @@ class BasicLogger:
             ax[i, 1].imshow(cfs_grid, cmap="gray")
             ax[i, 1].set_axis_off()
 
+            plt.imsave(os.path.join(self.path, f"counterfactuals_{i}.png"), cfs_grid, cmap="gray")
+            plt.imsave(os.path.join(self.path, f"samples{i}.png"), grid, cmap="gray")
+
         self._figure = f
 
 
@@ -77,8 +80,8 @@ class BasicLogger:
 
         if self.log_images:
             self._prepare_images_to_log()
-            if self._figure is not None:
-                self._figure.savefig(os.path.join(self.path, "counterfactuals.png"), bbox_inches="tight")
+            # if self._figure is not None:
+            #     self._figure.savefig(os.path.join(self.path, "counterfactuals.png"), bbox_inches="tight")
 
 
         df = pd.DataFrame.from_dict({**self.attributes, **self.metrics}, orient="index")
@@ -104,7 +107,8 @@ class WandbLogger(BasicLogger):
         super().__init__(attributes, path, log_images, n_batches)
 
         wandb.init(project="Synbols-benchmark", dir=self.path, config=self.attributes, reinit=True,
-                   tags=["new_orth", "top"])
+                   # tags=["top_final"])
+                   tags=["clip_early"])
 
 
     def accumulate(self, data, images):

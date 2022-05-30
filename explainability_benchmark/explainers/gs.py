@@ -59,9 +59,15 @@ class GrowingSpheres(ExplainerBase):
                 closest_enemy_ = sorted(enemies_,
                                         key= lambda x: torch.pairwise_distance(latent.reshape(1, -1), x.reshape(1, -1)))[:self.num_explanations]
 
-                for j, e in enumerate(closest_enemy_):
-                    out = self.feature_selection(e, latent, logit, generator, classifier)
-                    counterfactuals[i, j] = out
+                closest_enemy_ = torch.stack(closest_enemy_)
+                # torch.manual_seed(0)
+                # closest_enemy_ = torch.randn_like(closest_enemy_)
+                # for j, e in enumerate(closest_enemy_):
+                #     out = self.feature_selection(e, latent, logit, generator, classifier)
+                #     counterfactuals[i, j] = out
+                counterfactuals[i, :closest_enemy_.shape[0]] = closest_enemy_
+                out = self.feature_selection(counterfactuals[i], latent, logit, generator, classifier)
+                counterfactuals[i, :] = out
 
         return counterfactuals
 
@@ -139,27 +145,43 @@ class GrowingSpheres(ExplainerBase):
         counterfactual: e*
         """
 
-        move_sorted = sorted(enumerate(abs(counterfactual - latents.flatten())), key=lambda x: x[1])
-        move_sorted = [x[0] for x in move_sorted if x[1] > 0.0]
+        ne, c = counterfactual.size()
+        counterfactual = counterfactual.view(-1, c)
+        latents = latents.repeat(ne, 1).view(-1, c)
+        logits = logits.repeat(ne, 1).view(-1, logits.shape[1])
+        perturbations = (counterfactual - latents).abs()
+        move_sorted = torch.argsort(perturbations).t()
 
         out = counterfactual.clone()
 
-        reduced = 0
+        arange = list(range(ne))
 
         for k in move_sorted:
+            z = out.clone()
+            z[arange, k] = latents[arange, k]
+            curr_labels = classifier(generator(z)).argmax(1)
+            change = curr_labels != logits.max(1)[1]
+            out[change, k[change]] = z[change, k[change]]
 
-            new_enn = out.clone()
-            new_enn[k] = latents.flatten()[k]
+        # out2 = counterfactual[0].clone()
+        # latents = latents[0][None]
+        # move_sorted = sorted(enumerate(abs(out2 - latents.flatten())), key=lambda x: x[1])
+        # move_sorted = [x[0] for x in move_sorted if x[1] > 0.0]
+        # logits = logits[0][None]
+        # for k in move_sorted:
 
-            decoded = generator(new_enn.view(-1, latents.shape[1]))
-            preds = classifier(decoded).max(1)[1]
-            condition_class = preds != logits.max(1)[1]
+        #     new_enn = out2.clone()
+        #     new_enn[k] = latents.flatten()[k]
 
-            if condition_class:
-                out[k] = new_enn[k]
-                reduced += 1
+        #     decoded = generator(new_enn.view(-1, latents.shape[1]))
+        #     preds = classifier(decoded).max(1)[1]
+        #     condition_class = preds != logits.max(1)[1]
+
+        #     if condition_class:
+        #         out2[k] = new_enn[k]
 
 
+        import pudb; pudb.set_trace()  # BREAKPOINT
         return out.view(-1, latents.shape[1])
 
 
