@@ -6,7 +6,7 @@ solid = {
     "width": 32,
     "height": 32,
     "channels": 3,
-    "name": "non-camou-bw_n=1000000_2021-Sep-27.h5py",
+    "name": "non-camou-bw_n=1000000_2022-May-30.h5py",
     "task": "char",
     "augmentation": False,
     "mask": "random",
@@ -20,6 +20,7 @@ solid_small = {
     "height": 32,
     "channels": 3,
     "name": "non-camou-bw_n=200000_2022-May-30.h5py",
+    # "name": "non-camou-bw_n=10000_2022-May-30.h5py",
     "task": "char",
     "augmentation": False,
     "mask": "random",
@@ -46,4 +47,4 @@ EXP_GROUPS["oracle"] = hu.cartesian_exp_group({"lr": [0.001],
                         "backbone": [biggan_encoder],
                         "z_dim": [3],
                         "max_epoch": 100,
-                        "dataset": [solid_small]})
+                        "dataset": [solid]})

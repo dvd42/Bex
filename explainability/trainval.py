@@ -57,14 +57,28 @@ def trainval(exp_dict, savedir_base, data_root, reset=False):
     train_dataset, val_dataset = get_dataset(['train', 'val'], data_root, exp_dict)
     # val_dataset = get_dataset('val', exp_dict)
 
+    # char_2_font = {}
+    # char_2_img = {}
     # import matplotlib
-    # matplotlib.use("TkAgg")
+    # # matplotlib.use("TkAgg")
     # import matplotlib.pyplot as plt
-    # for i, x in enumerate(val_dataset.x):
-    #     print(val_dataset.raw_labels[i])
-    #     print(val_dataset.raw_labels[i]["font"])
-    #     plt.imshow(x)
-    #     plt.show()
+    # for i, x in enumerate(train_dataset.x):
+    #     font = train_dataset.raw_labels[i]["font"]
+    #     char = train_dataset.raw_labels[i]["char"]
+    #     if char not in char_2_font:
+    #         char_2_font[char] = []
+    #         char_2_img[char] = []
+    #     if font not in char_2_font[char]:
+    #         char_2_font[char].append(font)
+
+    #         char_2_img[char].append(x)
+    #         if len(char_2_font[char]) >= 48:
+    #             break
+        # print(val_dataset.raw_labels[i])
+        # print(val_dataset.raw_labels[i]["font"])
+        # plt.imshow(x)
+        # plt.show()
+
 
     # train and val loader
     train_loader = DataLoader(train_dataset,

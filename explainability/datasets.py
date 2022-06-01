@@ -372,11 +372,10 @@ class SynbolsSplit(Dataset):
             curr_labels.pop("seed") # not useful
         continuous_att = [curr_labels["inverse_color"]]
         curr_labels.pop("inverse_color")
+        curr_labels.pop("pixel_noise_scale")
         categorical_att = []
 
         for name, att in curr_labels.items():
-            if "pixel_noise" in name:
-                continue
             if len(self.raw_labelset[name]) > 1:
                 categorical_att.append(att)
 
