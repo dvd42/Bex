@@ -1,10 +1,8 @@
 import random
-import matplotlib
-matplotlib.use("Agg")
-from explainability_benchmark import Benchmark
-from explainability_benchmark import ExplainerBase
-from explainability_benchmark import BasicLogger, WandbLogger
-from explainability_benchmark.random_search import EXP_GROUPS
+from WhyY import Benchmark
+from WhyY import ExplainerBase
+from WhyY import BasicLogger, WandbLogger
+from WhyY.random_search import EXP_GROUPS
 
 
 class MyExplainer(ExplainerBase):
@@ -31,23 +29,35 @@ dummy_explainer = MyExplainer()
 
 
 # corrs = [0.9, 0.95]
-# clusters = [6, 10]
+corrs = [0.5, 0.95]
+clusters = [6, 10]
 
-# for corr in corrs:
-#     for n_clusters in clusters:
-#         bn = Benchmark(dataset="synbols_font", data_path="explainability_benchmark/data", load_train=False, corr_level=corr, n_clusters_att=n_clusters)
-        # bn.run("dive")
-bn = Benchmark(dataset="synbols_font", data_path="explainability_benchmark/data", load_train=False, corr_level=0.95, n_clusters_att=10)
-bn.runs(EXP_GROUPS["random_search"], log_img_thr=1)
+import numpy as np
+import torch
+for corr in corrs:
+    for n_clusters in clusters:
+        bn = Benchmark(dataset="synbols_font", data_path="explainability_benchmark/data", corr_level=corr, n_clusters_att=n_clusters)
+        # bn.run("ideal")
+        bn.run("dive")
+            # bn.run("dice")
+            #XGEM
+            # bn.run(explainer="dive", lr=0.1, diversity_weight=0, method="none", reconstruction_weight=0.01, lasso_weight=0)
+            # bn.run("stylex")
+            # bn.run("lcf")
+            # bn.run("gs")
+# bn = Benchmark(dataset="synbols_font", data_path="explainability_benchmark/data", corr_level=0.95, n_clusters_att=10)
+# bn.run(explainer="dive", lr=0.1, diversity_weight=0, method="none", reconstruction_weight=0.01, lasso_weight=0)
+# bn.run("stylex")
+# bn.run("dice")
+# bn.run("lcf")
+# bn.runs(EXP_GROUPS["random_search"], log_img_thr=1)
 # bn.run(explainer="ideal")
 #bn.run(explainer="stylex", output_path="images/stylex", logger=BasicLogger)
 # bn.run(explainer="dive", lr=0.1, method="fisher_spectral_inv", lasso_weight=0.001, reconstruction_weight=0.0001, diversity_weight=0)
-# bn.run(explainer="dive")
+# bn.run(explainer="dive", lr=1)
         # bn.run(explainer="gs")
         # bn.run(explainer="dive")
-# bn.run(explainer="dice")
-##XGEM
-# bn.run(explainer="dive", lr=0.05, diversity_weight=0, method="none", reconstruction_weight=0.1, lasso_weight=0.0001)
+# bn.run(explainer="dice", lr=0.1, diversity_weight=1, proximity_weight=1)
 #         # bn.run(explainer="stylex")
         # bn.run(explainer="lcf")
 

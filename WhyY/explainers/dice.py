@@ -1,13 +1,12 @@
 import torch
 import numpy as np
-from tqdm import tqdm
 
 from .base import ExplainerBase
 
 
 class Dice(ExplainerBase):
 
-    def __init__(self, num_explanations=8, proximity_weight=1, diversity_weight=1, yloss_type="hinge_loss", diversity_loss_type="dpp_style:inverse_dist", lr=0.1, max_iters=50, init_near_query_instance=True, stopping_threshold=0.5, use_mad=True):
+    def __init__(self, num_explanations=10, proximity_weight=1, diversity_weight=1, yloss_type="hinge_loss", diversity_loss_type="dpp_style:inverse_dist", lr=0.1, max_iters=50, init_near_query_instance=True, stopping_threshold=0.5, use_mad=True):
 
         super().__init__()
 
@@ -129,7 +128,6 @@ class Dice(ExplainerBase):
         prev_loss = 0
         logits = None
         self.patience = 10
-        pbar = tqdm(total=self.max_iters)
         while self.stop_loop(iterations, loss_diff, logits) is False:
 
             cf_instances.requires_grad = True
@@ -156,9 +154,6 @@ class Dice(ExplainerBase):
             loss_diff = abs(loss_value-prev_loss)
             prev_loss = loss_value
             iterations += 1
-            pbar.update(1)
-
-
 
         return cf_instances
 

@@ -88,10 +88,11 @@ class Generator(torch.nn.Module):
 
         self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=self.exp_dict["max_epoch"])
 
-        self.oracle = self.load_oracle().cuda()
+        self.oracle = None
+        # self.oracle = self.load_oracle().cuda()
         if "weights" in self.exp_dict:
             self.load_state_dict(hu.torch_load(self.exp_dict["weights"]))
-        self.freeze_oracle()
+        # self.freeze_oracle()
 
     def freeze_oracle(self):
 
@@ -297,7 +298,7 @@ class Generator(torch.nn.Module):
     def load_state_dict(self, state_dict):
 
         self.optimizer.load_state_dict(state_dict["optimizer"])
-        self.oracle.load_state_dict(state_dict["oracle"])
+        # self.oracle.load_state_dict(state_dict["oracle"])
         self.model.load_state_dict(state_dict["generator"])
         self.model.char_embedding.load_state_dict(state_dict["char_embedding"])
         self.model.font_embedding.load_state_dict(state_dict["font_embedding"])

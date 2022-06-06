@@ -27,7 +27,6 @@ class ExplainerBase:
             self.train_mus = torch.from_numpy(self.loaded_data['train_mus'][...])
             self.latent_mean = self.train_mus.mean(0)
             self.latent_std = self.train_mus.std(0)
-            self.latent_std[self.latent_std == 0] = 1
             # normalize latents with the training statistics
             self.mus = (self.mus - self.latent_mean) / self.latent_std
             self.mus_min = self.mus.min(0)[0]

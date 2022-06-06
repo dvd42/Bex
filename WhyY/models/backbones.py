@@ -377,7 +377,7 @@ class Encoder(torch.nn.Module):
         mlp_width = self.exp_dict["backbone"]["mlp_width"]
         mlp_depth = self.exp_dict["backbone"]["mlp_depth"]
         n_continuous = exp_dict["dataset"]["n_continuous"]
-        mlp_heads = [n_continuous, 1072, 48]
+        mlp_heads = [n_continuous, 48, 48]
 
         if exp_dict["backbone"]["feature_extractor"].lower() == "resnet":
             self.stem_feature_size = get_resnet_output_size(self.ratio, self.channels_width)
@@ -434,10 +434,10 @@ class Generator(torch.nn.Module):
         mlp_depth = self.exp_dict["backbone"]["mlp_depth"]
         n_continuous = exp_dict["dataset"]["n_continuous"]
 
-        self.char_embedding = torch.nn.Embedding(48, 3)
-        self.font_embedding = torch.nn.Embedding(1072, 256)
+        self.char_embedding = torch.nn.Embedding(48, self.z_dim)
+        self.font_embedding = torch.nn.Embedding(48, self.z_dim)
 
-        self.decoder = Decoder(n_continuous + 3 + 256,
+        self.decoder = Decoder(n_continuous + self.z_dim * 2,
                                 self.channels_width,
                                 in_ch=1,
                                 ratio=self.ratio,

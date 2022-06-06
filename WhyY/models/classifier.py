@@ -135,6 +135,8 @@ class ResNet(torch.nn.Module):
         self.optimizer = torch.optim.AdamW(self.model.parameters(), betas=(0.9, 0.999),
                                            lr=self.exp_dict["lr"], weight_decay=self.exp_dict["weight_decay"])
 
+        self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=self.exp_dict["max_epoch"])
+
         if self.exp_dict["weights"] is not None:
             self.load_state_dict(hu.torch_load(self.exp_dict["weights"]))
 
@@ -151,6 +153,7 @@ class ResNet(torch.nn.Module):
                     ret[k].append(v)
                 else:
                     ret[k] = [v]
+        self.scheduler.step()
         return {f"Train/{k}": np.mean(v) for k,v in ret.items()}
 
 

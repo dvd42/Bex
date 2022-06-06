@@ -17,8 +17,7 @@ import requests
 from tqdm import tqdm
 
 MIRRORS = [
-    'https://zenodo.org/record/4701316/files/%s?download=1',
-    'https://github.com/ElementAI/synbols-resources/raw/master/datasets/generated/%s'
+    'https://zenodo.org/record/6616598/files/%s?download=1',
 ]
 
 def get_data_path_or_download(dataset, data_root):
@@ -108,6 +107,8 @@ def get_dataset(splits, data_root, exp_dict):
         dataset_dict = exp_dict
 
 
+    data_root = os.path.join(data_root, "datasets")
+    os.makedirs(data_root, exist_ok=True)
     if dataset_dict["backend"] == "generated_synbols":
         full_path = get_data_path_or_download(dataset_dict["name"],
                                             data_root=data_root)
@@ -419,6 +420,9 @@ class SynbolsSplit(Dataset):
         curr_labels = copy.deepcopy(self.raw_labels[item])
         if "seed" in curr_labels:
             curr_labels.pop("seed") # not useful
+        if "pixel_noise_scale" in curr_labels:
+            curr_labels.pop("pixel_noise_scale")
+
         continuous_att = [curr_labels["inverse_color"]]
         curr_labels.pop("inverse_color")
         categorical_att = []

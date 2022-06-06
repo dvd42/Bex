@@ -4,7 +4,7 @@ from .base import ExplainerBase
 
 class IdealExplainer(ExplainerBase):
 
-    def __init__(self, encoder, generator, dataset, num_explanations=8):
+    def __init__(self, encoder, generator, dataset, num_explanations=10):
 
         super().__init__()
         self.num_explanations = num_explanations
@@ -16,8 +16,8 @@ class IdealExplainer(ExplainerBase):
 
     def explain_batch(self, latents, logits, images, classifier, generator):
 
-        mean = self.train_mus.mean(0)[3:259]
-        std = self.train_mus.std(0)[3:259]
+        mean = self.latent_mean[3:6]
+        std = self.latent_std[3:6]
         b, c = latents.size()
 
         targets = 1 - logits.argmax(1)
@@ -30,7 +30,7 @@ class IdealExplainer(ExplainerBase):
         for i, t in enumerate(targets):
             t = int(t)
             font = np.random.choice(correlation[t], self.num_explanations, replace=True)
-            z[i, :, 3:259] = (weights_font[font] - mean.cuda()) / std.cuda()
+            z[i, :, 3:6] = (weights_font[font] - mean.cuda()) / std.cuda()
 
         z_perturbed = z
 

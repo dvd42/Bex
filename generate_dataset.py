@@ -14,9 +14,9 @@ from explainability_benchmark.models import get_model
 import argparse
 
 
-idx_to_name = {0: "inverse_color", 1: "pixel_noise_scale", 2:"scale", 3: "translation-x", 4:"translation-y", 5: "rotation"}
-torch.manual_seed(0)
-np.random.seed(0)
+idx_to_name = {0: "inverse_color", 1: "scale", 2: "translation-x", 3:"translation-y", 4: "rotation"}
+# torch.manual_seed(0)
+# np.random.seed(0)
 
 
 
@@ -37,15 +37,15 @@ def correlation_font(categorical_att, args, kmeans, weights):
     # char -2 font -1
     b = categorical_att.shape[0]
     ret = torch.zeros(b).long()
-    n_fonts = 1072
+    n_fonts = 48
     characters = torch.randint(47, size=(b, ))
     categorical_att[:, -2] = characters
     _y = characters % 2 == 1
     ind = torch.arange(n_fonts)
 
     centers = torch.from_numpy(kmeans.cluster_centers_)
-    corr_fonts = torch.cosine_similarity(centers[:, None, :], torch.from_numpy(weights)[None, ...], -1).argmax(1)
-    import pudb; pudb.set_trace()  # BREAKPOINT
+    corr_fonts = torch.linalg.norm(centers[:, None, :] - torch.from_numpy(weights)[None, ...], ord=2, dim=-1).argmin(-1)
+
     # f1 = ind[clusters == 0]
     # f2 = ind[clusters == 1]
     # f1 = [1]
@@ -57,8 +57,8 @@ def correlation_font(categorical_att, args, kmeans, weights):
 
     flip = torch.rand(b)
 
-    # 10% noise
-    y = torch.where(torch.rand(b) < 0.10, ~_y, _y)
+    # 5% noise
+    y = torch.where(torch.rand(b) < 0.0, ~_y, _y)
     mask = flip < args.corr_level
     y_1 = (y == 0) & (mask)
     y_2 = (y == 1) & (mask)
@@ -202,21 +202,45 @@ def generate_dataset(data_root, exp_dict, args):
                                 shuffle=False,
                             num_workers=4)
 
-    # import matplotlib
-    # matplotlib.use("TkAgg")
-    # import matplotlib.pyplot as plt
-    # for i, x in enumerate(val_dataset.x):
-    #     print(val_dataset.raw_labels[i]["font"])
-    #     print(val_dataset.raw_labels[i]["scale"])
-    #     print(val_dataset.y[i])
-    #     plt.imshow(x, cmap="gray")
-    #     plt.show()
+    font_2_char = {}
+    font_2_img = {}
+    import matplotlib
+    matplotlib.use("TkAgg")
+    import matplotlib.pyplot as plt
+    for i, x in enumerate(train_dataset.x):
+        font = train_dataset.raw_labels[i]["font"]
+        char = train_dataset.raw_labels[i]["char"]
+        if font not in font_2_char:
+            font_2_char[font] = []
+            font_2_img[font] = []
+        if char not in font_2_char[font]:
+            font_2_char[font].append(char)
 
+            font_2_img[font].append(x)
+            # if len(char_2_font[char]) >= 48:
+            #     break
+        # print(val_dataset.raw_labels[i])
+        # print(val_dataset.raw_labels[i]["font"])
+        # plt.imshow(x)
+        # plt.show()
+
+    for font in font_2_img.keys():
+        idxs = np.argsort(font_2_char[font])
+        font_2_img[font] = np.stack(font_2_img[font])[idxs].tolist()
+    from torchvision.utils import make_grid
+    f, axis = plt.subplots(6, 8)
+    f.set_size_inches(15.5, 15.5)
+    for ax, font in zip(axis.ravel(), sorted(font_2_img.keys())):
+        images = torch.from_numpy(np.stack(font_2_img[font])).permute(0, 3, 1, 2)
+        ax.imshow(make_grid(images).permute(1, 2, 0))
+        ax.axis('off')
+        ax.set_title(font)
+        ax.axis('off')
+
+    plt.show()
     model = get_model("generator", data_root)
-    weights = exp_dict["weights"]
-    model.load_state_dict(hu.torch_load(weights))
     if args.att == "font":
-        path = os.path.join(data_root, f"datasets/dataset_{args.att}_corr{args.corr_level}_n_clusters{args.n_clusters}.h5py")
+        path = os.path.join(data_root, f"datasets_0/dataset_{args.att}_corr{args.corr_level}_n_clusters{args.n_clusters}.h5py")
     else:
         path = os.path.join(data_root, f"datasets/dataset_{args.att}_scale.h5py")
     create_dataset(model, train_loader, val_loader, path, args)

@@ -9,7 +9,7 @@ torch.backends.cudnn.deterministic = True
 
 class Stylex(ExplainerBase):
 
-    def __init__(self, num_explanations=8, t=0.3, shift_size=0.5, strategy="independent"):
+    def __init__(self, num_explanations=10, t=0.3, shift_size=0.8, strategy="independent"):
 
         super().__init__()
         self.num_explanations = num_explanations

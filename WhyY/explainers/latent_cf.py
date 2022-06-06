@@ -7,7 +7,7 @@ from .base import ExplainerBase
 
 class LCF(ExplainerBase):
 
-    def __init__(self, num_explanations=8, p=0.1, tolerance=0.1, lr=0.05, max_iters=50):
+    def __init__(self, num_explanations=10, p=0.1, tolerance=0.5, lr=0.1, max_iters=50):
 
         super().__init__()
 

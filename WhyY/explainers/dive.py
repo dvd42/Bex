@@ -8,9 +8,9 @@ from .base import ExplainerBase
 class Dive(ExplainerBase):
     """Main class to generate counterfactuals"""
 
-    def __init__(self, encoder, generator, classifier, train_loader, num_explanations=8,
-                 diversity_weight=10, lr=0.1, lasso_weight=0.001, reconstruction_weight=0, max_iters=20,
-                 method="fisher_spectral"):
+    def __init__(self, encoder, generator, classifier, train_loader, num_explanations=10,
+                 diversity_weight=0, lr=0.1, lasso_weight=0.1, reconstruction_weight=0.001, max_iters=20,
+                 method="fisher_spectral_inv"):
 
         """Constructor
         Args:

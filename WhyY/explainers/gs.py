@@ -21,7 +21,7 @@ class GrowingSpheres(ExplainerBase):
     verbose: text
     """
 
-    def __init__(self, data_path="data", num_explanations=8, n_candidates=15, layer_shape="sphere", caps=1, first_radius=0.1, decrease_radius=10):
+    def __init__(self, data_path="data", num_explanations=10, n_candidates=50, layer_shape="sphere", caps=None, first_radius=10, decrease_radius=2):
 
         super().__init__()
         self.num_explanations = num_explanations
@@ -181,7 +181,6 @@ class GrowingSpheres(ExplainerBase):
         #         out2[k] = new_enn[k]
 
 
-        import pudb; pudb.set_trace()  # BREAKPOINT
         return out.view(-1, latents.shape[1])
 
 
