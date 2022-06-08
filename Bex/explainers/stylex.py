@@ -9,7 +9,7 @@ torch.backends.cudnn.deterministic = True
 
 class Stylex(ExplainerBase):
 
-    """ StylEx explainer as described in https://arxiv.org/pdf/2104.13369.pdf
+    """ StylEx explainer as described in https://arxiv.org/abs/2104.13369
 
     num_explanations (``int``, optional): number of counterfactuals to be generated (default: 10)
     t (``float``, optional): perturbation threshold :math:`t` to consider a sample *explained* (default: 0.3)

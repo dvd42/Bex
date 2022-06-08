@@ -6,7 +6,7 @@ from .base import ExplainerBase
 
 class Dice(ExplainerBase):
 
-    """ DiCE explainer as described in https://arxiv.org/abs/1806.08867
+    """ DiCE explainer as described in https://arxiv.org/abs/1905.07697
 
     Args:
         num_explanations (``int``, optional): number of counterfactuals to be generated (default: 10)
