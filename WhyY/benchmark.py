@@ -39,7 +39,7 @@ class DatasetWrapper(torch.utils.data.Dataset):
 class Benchmark:
 
     def __init__(self, dataset="synbols_font", data_path="data", batch_size=12, log_images=True, n_samples=100, r=1.,
-                 corr_level=0.95, n_clusters_att=10):
+                 corr_level=0.95, n_clusters_att=10, seed=0):
 
         self.data_path = data_path
         self.log_images = log_images
@@ -49,6 +49,7 @@ class Benchmark:
         self.dataset_name = dataset
         self.corr_level = corr_level
         self.n_clusters_att = n_clusters_att
+        self.seed = seed
         self._tau = 0.15
 
         self.r = r
@@ -126,12 +127,12 @@ class Benchmark:
 
     def _setup(self, explainer, logger, **kwargs):
 
-        # np.random.seed(0)
-        # torch.manual_seed(0)
+        np.random.seed(self.seed)
+        torch.manual_seed(self.seed)
         explainer_name = self.current_config["explainer_name"]
         output_path = self.current_config["output_path"]
         log_images = self.current_config["log_images"]
-        explainer = get_explainer(explainer, self.encoder, self.generator, self.classifier, self.train_loader, self.val_loader, **kwargs)
+        explainer = get_explainer(explainer, self.encoder, self.generator, self.val_loader, **kwargs)
         explainer.data_path = self.data_path
         self._prepare_cache(explainer)
         att = {k: v for k, v in explainer.__dict__.items() if isinstance(v, (str, int, float))}
@@ -293,14 +294,17 @@ class Benchmark:
             self.type_of_cf["Esc"] = successful_cf.float().mean().item()
             self.type_of_cf["Ecc"].append(((E_cc & ~E_agree).sum() / ncfs).item())
             self.type_of_cf["E_causal"].append(((E_causal_change & ~E_agree).sum() / ncfs).item())
+            self.type_of_cf["E_trivial"].append((E_cc & E_agree).float().mean().item())
         else:
             self.type_of_cf["Esc"] = 0
             self.type_of_cf["Ecc"].append(1)
             self.type_of_cf["E_causal"].append(0)
 
         causal = torch.where(E_causal_change & ~E_agree)
+        trivial = torch.where(E_cc & E_agree)
+        changes = torch.where(E_cc & ~E_agree)
 
-        return successful_cf, causal
+        return successful_cf, causal, trivial, changes
 
 
     def _cosine_embedding(self, z, explainer, binarize=False):
@@ -317,8 +321,8 @@ class Benchmark:
         z_font = z[:, None, 3:6]
         char = torch.softmax((torch.linalg.norm(weights_char[None, ...] - z_char, 2, dim=-1) * -3), dim=-1)
         font = torch.softmax((torch.linalg.norm(weights_font[None, ...] - z_font, 2, dim=-1) * -3), dim=-1)
-        char = char / self._tau
-        font = font / self._tau
+        # char = char / self._tau
+        # font = font / self._tau
 
         if binarize:
             char_max = char.argmax(-1)
@@ -471,9 +475,6 @@ class Benchmark:
     def run(self, explainer="Dive", logger=WandbLogger, output_path=None, log_images=True, log_img_thr=1, **kwargs):
 
         self._set_config(explainer, log_images, output_path, log_img_thr)
-        if "method" in kwargs:
-            if kwargs["method"] == "none":
-                self.current_config["explainer_name"] = "xgem"
         explainer, logger = self._setup(explainer, logger, **kwargs)
 
         print("Selecting optimal data subset...")
@@ -483,10 +484,14 @@ class Benchmark:
         changes = {"min": [], "max": [], "mean": [], "std": []}
         self._diff_histogram = {"font_perturbation": [], "char_perturbation": [], "translation-x_perturbation": [], "translation-y_perturbation": [],
                                 "inverse_color_perturbation": [], "scale_perturbation": [], "rotation_perturbation": []}
-        self.type_of_cf = {"Ecc": [], "E_causal": []}
+        self.type_of_cf = {"Ecc": [], "E_causal": [], "E_trivial": []}
 
-        # causal_changes = wandb.Artifact(f"Counterfactuals_0_{self.current_config['explainer_name']}_{self.corr_level}_{self.n_clusters_att}", type="Causal Counterfactuals_0")
-        # table = wandb.Table(columns=["ID", "Original", "Counterfactuals", "E_causal", "Ecc"])
+        causal_artifact = wandb.Artifact(f"Causal_5_{self.current_config['explainer_name']}_{self.corr_level}_{self.n_clusters_att}", type="Causal Counterfactuals_5")
+        trivial_artifact = wandb.Artifact(f"Trivial_5_{self.current_config['explainer_name']}_{self.corr_level}_{self.n_clusters_att}", type="Trivial Counterfactuals_5")
+        changes_artifact = wandb.Artifact(f"Change_5_{self.current_config['explainer_name']}_{self.corr_level}_{self.n_clusters_att}", type="Change Counterfactuals_5")
+        causal_table = wandb.Table(columns=["ID", "Original", "Counterfactuals", "E_causal"])
+        trivial_table = wandb.Table(columns=["ID", "Original", "Counterfactuals", "E_Trivial"])
+        changes_table = wandb.Table(columns=["ID", "Original", "Counterfactuals", "E_cc"])
         for i, batch in enumerate(tqdm(self.val_loader)):
 
             latents, logits, x, y, categorical_att, continuous_att = self._prepare_batch(batch, explainer)
@@ -510,38 +515,34 @@ class Benchmark:
             logits_perturbed = self.classifier.model(decoded)
 
             z_perturbed = z_perturbed.view(b, -1, c)
-            successful_cf, causal = self._get_successful_cf(z_perturbed, latents, logits_perturbed, logits, explainer)
+            successful_cf, causal, trivial, change = self._get_successful_cf(z_perturbed, latents, logits_perturbed, logits, explainer)
             if successful_cf.sum() != 0:
                 self._build_histogram(z_perturbed, latents, successful_cf)
             similarity, success, idxs, extra = self._compute_metrics(latents, z_perturbed, successful_cf, explainer)
 
-            # from torchvision.utils import make_grid
-            # import cv2
-            # import cv2
+            from torchvision.utils import make_grid
+            import cv2
 
-            # if causal[0].numel() != 0:
-            # if successful_cf.sum() != 0:
-                # originals = wandb.Image(make_grid(x[causal[0]]))
-                # cfs = wandb.Image(make_grid(decoded.view(decoded.shape[0] // 10, 10, 3, 32, 32)[causal[0], causal[1]]))
-                # table.add_data(i, originals, cfs, self.type_of_cf["E_causal"][-1], self.type_of_cf["Ecc"][-1])
+            if causal[0].numel() != 0:
+                originals = wandb.Image(make_grid(x[causal[0]]))
+                causal_cfs = wandb.Image(make_grid(decoded.view(decoded.shape[0] // 10, 10, 3, 32, 32)[causal[0], causal[1]]))
+                causal_table.add_data(i, originals, causal_cfs, self.type_of_cf["E_causal"][-1])
             # for i, (b, ne) in enumerate(zip(causal[0], causal[1])):
-                # cv2.imshow(f"original_{i}", x[b].permute(1, 2, 0).cpu().detach().numpy())
-                # cv2.imshow(f"counterfactual{i}", decoded.view(12, 10, 3, 32, 32)[b, ne].permute(1, 2, 0).cpu().detach().numpy())
+                # for i, (b, ne) in enumerate(zip(trivial[0], trivial[1])):
+                #     cv2.imshow(f"original", x[b].permute(1, 2, 0).cpu().detach().numpy())
+                #     cv2.imshow(f"counterfactual", decoded.view(12, 10, 3, 32, 32)[b, ne].permute(1, 2, 0).cpu().detach().numpy())
 
-                # z_perturbed = self._cosine_embedding(z_perturbed, explainer)
-                # z = latents[:, None, :].repeat(1, 10, 1).view(b, 10, c)
-                # z = self._cosine_embedding(z, explainer)
-                # preds = z_perturbed.view(-1, z_perturbed.size(-1))[:, 48:96].argmax(1)
-                # fonts = z.view(-1, z.size(-1))[:, 48:96].argmax(1)
-                # import ipdb; ipdb.set_trace()  # BREAKPOINT
-                # for i, idx in enumerate(idxs):
-                #     cv2.imshow(f"original_{i}", x[idx[0]].permute(1, 2, 0).cpu().detach().numpy())
-                #     for j, e in enumerate(idx[1]):
-                #         print(i, j, fonts.view(b, 10)[idx[0], e].item(), preds.view(b, 10)[idx[0], e].item())
-                #         cv2.imshow(f"counterfactual_{j}_{i}", decoded.view(12, 10, 3, 32, 32)[idx[0], e].permute(1, 2, 0).cpu().detach().numpy())
+            if trivial[0].numel() != 0:
+                originals = wandb.Image(make_grid(x[trivial[0]]))
+                trivial_cfs = wandb.Image(make_grid(decoded.view(decoded.shape[0] // 10, 10, 3, 32, 32)[trivial[0], trivial[1]]))
+                trivial_table.add_data(i, originals, trivial_cfs, self.type_of_cf["E_trivial"][-1])
 
-                #     cv2.waitKey(0)
-            # cv2.waitKey(0)
+            if change[0].numel() != 0:
+                originals = wandb.Image(make_grid(x[change[0]]))
+                changes_cfs = wandb.Image(make_grid(decoded.view(decoded.shape[0] // 10, 10, 3, 32, 32)[change[0], change[1]]))
+                changes_table.add_data(i, originals, changes_cfs, self.type_of_cf["Ecc"][-1])
+
+                    # cv2.waitKey(0)
 
 
             for k, v in extra.items():
@@ -551,9 +552,13 @@ class Benchmark:
             # metrics = {"similarity": similarity, "success": success}
             self._accumulate_log(logger, metrics, x, decoded, idxs)
 
-        # wandb.log({"Causal Changes": table})
-        # causal_changes.add(table, "Causal changes")
-        # wandb.run.log_artifact(causal_changes)
+        causal_artifact.add(causal_table, "Causal counterfactuals")
+        trivial_artifact.add(trivial_table, "Trivial counterfactuals")
+        changes_artifact.add(changes_table, "Change counterfactuals")
+        wandb.run.log_artifact(causal_artifact)
+        wandb.run.log_artifact(trivial_artifact)
+        wandb.run.log_artifact(changes_artifact)
+
         x, y, auc = self._compute_auc(logger.metrics)
         logger.metrics["auc"] = auc
         logger.metrics["auc_x"] = x

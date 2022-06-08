@@ -107,7 +107,7 @@ class WandbLogger(BasicLogger):
         super().__init__(attributes, path, log_images, n_batches)
 
         wandb.init(project="Synbols-benchmark", dir=self.path, config=self.attributes, reinit=True,
-                   tags=["seed"])
+                   tags=["tables"])
 
 
     def accumulate(self, data, images):

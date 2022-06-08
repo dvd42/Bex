@@ -8,9 +8,9 @@ from .base import ExplainerBase
 class Dive(ExplainerBase):
     """Main class to generate counterfactuals"""
 
-    def __init__(self, encoder, generator, classifier, train_loader, num_explanations=10,
-                 diversity_weight=0, lr=0.1, lasso_weight=0.1, reconstruction_weight=0.001, max_iters=20,
-                 method="fisher_spectral_inv"):
+    def __init__(self, num_explanations=10,
+                 diversity_weight=0, lr=0.1, lasso_weight=0.1, reconstruction_weight=0.001, max_iters=50,
+                 method="fisher_spectral"):
 
         """Constructor
         Args:
@@ -19,11 +19,7 @@ class Dive(ExplainerBase):
         """
 
         super().__init__()
-        self.encoder = encoder
-        self.classifier = classifier
-        self.generator = generator
         self.lr = lr
-        self.train_loader = train_loader
         self.diversity_weight = diversity_weight
         self.lasso_weight = lasso_weight
         self.reconstruction_weight = reconstruction_weight
@@ -33,26 +29,31 @@ class Dive(ExplainerBase):
         self.cache = False
 
 
-    def read_or_write_fim(self):
+    def read_or_write_fim(self, generator, classifier):
 
         if "fishers" not in self.loaded_data:
             print("Caching FIM")
-            self.write_fim()
+            self.write_fim(generator, classifier)
         self.read_fim()
 
 
-    def write_fim(self):
+    def write_fim(self, generator, classifier):
 
-        for idx, x, y, categorical_att, continuous_att in tqdm(self.train_loader):
-            x = x.cuda()
-            categorical_att = categorical_att.cuda()
-            continuous_att = continuous_att.cuda()
-            z = self.generator.model.embed_attributes(categorical_att, continuous_att)
+        # for idx, x, y, categorical_att, continuous_att in tqdm(self.train_loader):
+        #     x = x.cuda()
+        #     categorical_att = categorical_att.cuda()
+        #     continuous_att = continuous_att.cuda()
+        #     z = self.generator.model.embed_attributes(categorical_att, continuous_att)
+
+            # self.train_mus = torch.from_numpy(self.loaded_data['train_mus'][...])
+        train_mus = (self.train_mus.cuda() - self.latent_mean.cuda()) / self.latent_std.cuda()
+        for z in tqdm(train_mus.chunk(train_mus.shape[0] // 512)):
+
 
             def jacobian_forward(z):
 
-                reconstruction = self.generator.model.decode(z)
-                logits = self.classifier.model(reconstruction)
+                reconstruction = generator(z)
+                logits = classifier(reconstruction)
                 y = torch.distributions.Bernoulli(logits=logits).sample().detach()
                 logits = logits * y + (1 - logits) * (1 - y)
                 loss = logits.sum(0)
@@ -68,7 +69,7 @@ class Dive(ExplainerBase):
             fishers += fisher.numpy()
             del fisher
             del z
-        to_save = dict(fishers=fishers)
+        to_save = dict(fishers_norm=fishers)
 
         for k, v in to_save.items():
             self.loaded_data[k] = v
@@ -78,6 +79,7 @@ class Dive(ExplainerBase):
     def read_fim(self):
         print("Reading FIM...")
         self.fisher = torch.from_numpy(self.loaded_data['fishers'][...])
+        # self.fisher = torch.from_numpy(self.loaded_data['fishers_norm'][...])
         print("Done...")
 
 
@@ -92,7 +94,7 @@ class Dive(ExplainerBase):
 
         # TODO this is hacky
         if not self.cache:
-            self.read_or_write_fim()
+            self.read_or_write_fim(generator, classifier)
             self.cache = True
 
         b, c = latents.size()

@@ -34,15 +34,17 @@ clusters = [6, 10]
 
 import numpy as np
 import torch
-for corr in corrs:
-    for n_clusters in clusters:
-        bn = Benchmark(dataset="synbols_font", data_path="explainability_benchmark/data", corr_level=corr, n_clusters_att=n_clusters)
-        # bn.run("ideal")
-        bn.run("dive")
+for _ in range(1):
+    for corr in corrs:
+        for n_clusters in clusters:
+            bn = Benchmark(dataset="synbols_font", data_path="data", corr_level=corr, n_clusters_att=n_clusters)
+            # bn.run("stylex")
+            # bn.run("xgem")
+            # bn.run("ideal")
+            bn.run("dive")
             # bn.run("dice")
             #XGEM
             # bn.run(explainer="dive", lr=0.1, diversity_weight=0, method="none", reconstruction_weight=0.01, lasso_weight=0)
-            # bn.run("stylex")
             # bn.run("lcf")
             # bn.run("gs")
 # bn = Benchmark(dataset="synbols_font", data_path="explainability_benchmark/data", corr_level=0.95, n_clusters_att=10)
