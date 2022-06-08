@@ -6,32 +6,41 @@ from .base import ExplainerBase
 
 class Dice(ExplainerBase):
 
-    def __init__(self, num_explanations=10, proximity_weight=1, diversity_weight=1, yloss_type="hinge_loss", diversity_loss_type="dpp_style:inverse_dist", lr=0.1, max_iters=50, init_near_query_instance=True, stopping_threshold=0.5, use_mad=True):
+    """ DiCE explainer as described in https://arxiv.org/abs/1806.08867
+
+    Args:
+        num_explanations (``int``, optional): number of counterfactuals to be generated (default: 10)
+        lr (``float``, optional): learning rate (default: 0.1)
+        num_iters (``int``, optional): number of gradient descent steps to perform (default: 50)
+        proximity_weight (``float``, optional): weight of the reconstruction term :math:`\\lambda_1` in the loss function (default: 1.0)
+        diversity_weight (``float``, optional): weight of the diversity term :math:`\\lambda_2` in the loss function (default: 1.0)
+    """
+
+    def __init__(self, num_explanations=10, lr=0.1, num_iters=50, proximity_weight=1, diversity_weight=1):
 
         super().__init__()
 
         self.num_explanations = num_explanations
         self.proximity_weight = proximity_weight
         self.diversity_weight = diversity_weight
-        self.yloss_type = yloss_type
-        self.diversity_loss_type = diversity_loss_type
+        self.yloss_type = "hinge_loss"
+        self.diversity_loss_type = "dpp_style:inverse_dist"
         self.lr = lr
-        self.init_near_query_instance = init_near_query_instance
-        self.stopping_threshold = stopping_threshold
+        self.init_near_query_instance = True
+        self.stopping_threshold = 0.5
         self.cache = False
-        self.max_iters = max_iters
-        self.use_mad = use_mad
+        self.num_iters = num_iters
 
 
-    def _read_or_write_mads(self):
+    def __read_or_write_mads(self):
 
         if "mads" not in self.loaded_data:
             print("Caching MADs")
-            self.write_mads()
-        self.read_mads()
+            self.__write_mads()
+        self.__read_mads()
 
 
-    def write_mads(self):
+    def __write_mads(self):
 
         mads = torch.from_numpy(np.median(abs(self.train_mus - np.median(self.train_mus, 0)), 0))
         to_save = dict(mads=mads)
@@ -41,39 +50,16 @@ class Dice(ExplainerBase):
             print("Done.")
 
 
-    def read_mads(self):
+    def __read_mads(self):
         print("Reading MADs...")
         self.mads = torch.from_numpy(self.loaded_data['mads'][...])
         print("Done...")
 
     def explain_batch(self, latents, logits, images, classifier, generator):
 
-        """Generates diverse counterfactual explanations
-        :param query_instance: A dictionary of feature names and values. Test point of interest.
-        :param total_CFs: Total number of counterfactuals required.
-        :param desired_class: Desired counterfactual class - can take 0 or 1. Default value is "opposite" to the outcome class of query_instance for binary classification.
-        :param proximity_weight: A positive float. Larger this weight, more close the counterfactuals are to the query_instance.
-        :param diversity_weight: A positive float. Larger this weight, more diverse the counterfactuals are.
-        :param categorical_penalty: A positive float. A weight to ensure that all levels of a categorical variable sums to 1.
-        :param features_to_vary: Either a string "all" or a list of feature names to vary.
-        :param yloss_type: Metric for y-loss of the optimization function. Takes "l2_loss" or "log_loss" or "hinge_loss".
-        :param diversity_loss_type: Metric for diversity loss of the optimization function. Takes "avg_dist" or "dpp_style:inverse_dist".
-        :param lr: Learning rate for optimizer.
-        :param min_iter: Min iterations to run gradient descent for.
-        :param max_iter: Max iterations to run gradient descent for.
-        :param loss_diff_thres: Minimum difference between successive loss values to check convergence.
-        :param loss_converge_maxiter: Maximum number of iterations for loss_diff_thres to hold to declare convergence. Defaults to 1, but we assigned a more conservative value of 2 in the paper.
-        :param verbose: Print intermediate loss value.
-        :param init_near_query_instance: Boolean to indicate if counterfactuals are to be initialized near query_instance.
-        :param tie_random: Used in rounding off CFs and intermediate projection.
-        :param stopping_threshold: Minimum threshold for counterfactuals target class probability.
-        :return: A CounterfactualExamples object to store and visualize the resulting counterfactual explanations (see diverse_counterfactuals.py).
-        """
-
-
         # TODO this is hacky
-        if not self.cache and self.use_mad:
-            self._read_or_write_mads()
+        if not self.cache:
+            self.__read_or_write_mads()
             self.cache = True
 
 
@@ -94,11 +80,9 @@ class Dice(ExplainerBase):
         # self.yloss_type = yloss_type
         # self.diversity_loss_type = diversity_loss_type
 
-        self.feature_weights_list = torch.ones(c).cuda()
-        if self.use_mad:
-            mads = self.mads.cuda()
-            inverse_mads = 1 / (mads + 1e-3)
-            self.feature_weights_list = inverse_mads
+        mads = self.mads.cuda()
+        inverse_mads = 1 / (mads + 1e-3)
+        self.feature_weights_list = inverse_mads
 
         optimizer = torch.optim.Adam([cf_instances], lr=self.lr)
 
@@ -128,7 +112,7 @@ class Dice(ExplainerBase):
         prev_loss = 0
         logits = None
         self.patience = 10
-        while self.stop_loop(iterations, loss_diff, logits) is False:
+        while self.__stop_loop(iterations, loss_diff, logits) is False:
 
             cf_instances.requires_grad = True
             optimizer.zero_grad()
@@ -138,13 +122,13 @@ class Dice(ExplainerBase):
             decoded = generator(cf_instances.view(-1, c))
             logits = classifier(decoded)
 
-            yloss = self.compute_yloss(logits.max(1)[0])
+            yloss = self.__compute_yloss(logits.max(1)[0])
             if self.proximity_weight > 0:
-                proximity_loss = self.compute_proximity_loss(latents, cf_instances)
+                proximity_loss = self.__compute_proximity_loss(latents, cf_instances)
             if self.diversity_weight > 0:
-                diversity_loss = self.compute_diversity_loss(cf_instances)
+                diversity_loss = self.__compute_diversity_loss(cf_instances)
 
-            loss_value = self.compute_loss(yloss, proximity_loss, diversity_loss)
+            loss_value = self.__compute_loss(yloss, proximity_loss, diversity_loss)
             loss_value.backward()
 
             cf_instances.grad = cf_instances.grad * mask
@@ -158,7 +142,7 @@ class Dice(ExplainerBase):
         return cf_instances
 
 
-    def compute_yloss(self, logits):
+    def __compute_yloss(self, logits):
 
         if self.yloss_type == 'l2_loss':
             yloss = torch.pow((logits - self.target_cf_class), 2)
@@ -181,22 +165,22 @@ class Dice(ExplainerBase):
         return yloss.mean()
 
 
-    def compute_proximity_loss(self, latents, cf_instances):
+    def __compute_proximity_loss(self, latents, cf_instances):
         """compute weighted distance between query intances and counterfactual explanations"""
         return torch.mean(torch.abs(cf_instances - latents[:, None, :]) * self.feature_weights_list)
 
 
-    def compute_dist(self, x1, x2):
+    def __compute_dist(self, x1, x2):
         return torch.sum(torch.mul(torch.abs(x1 - x2), self.feature_weights_list), dim=0).mean()
 
 
-    def dpp_style(self, cf_instances, submethod):
+    def __dpp_style(self, cf_instances, submethod):
         """Computes the DPP of a matrix."""
 
         det_entries = torch.ones(self.num_explanations, self.num_explanations)
         for i in range(self.num_explanations):
             for j in range(self.num_explanations):
-                det_entries[i, j] = self.compute_dist(cf_instances[:, i], cf_instances[:, j])
+                det_entries[i, j] = self.__compute_dist(cf_instances[:, i], cf_instances[:, j])
 
         if submethod == "inverse_dist":
             det_entries = 1.0 / (1.0 + det_entries)
@@ -209,16 +193,14 @@ class Dice(ExplainerBase):
         return torch.det(det_entries)
 
 
-    def compute_diversity_loss(self, cf_instances):
+    def __compute_diversity_loss(self, cf_instances):
         """Computes the third part (diversity) of the loss function."""
         if self.num_explanations == 1:
             return torch.tensor(0.0)
 
         if "dpp" in self.diversity_loss_type:
             submethod = self.diversity_loss_type.split(':')[1]
-            return self.dpp_style(cf_instances, submethod)
-        elif self.diversity_loss_type == "avg_dist":
-            return 1 - 1 / (1.0 + self.mm(cf_instances, cf_instances.T))
+            return self.__dpp_style(cf_instances, submethod)
 
         else:
             raise ValueError(f"diversity_loss_type {self.diversity_loss_type} not supported")
@@ -233,7 +215,7 @@ class Dice(ExplainerBase):
     #     return regularization_loss
 
 
-    def compute_loss(self, yloss, proximity_loss, diversity_loss):
+    def __compute_loss(self, yloss, proximity_loss, diversity_loss):
         """Computes the overall loss"""
         # yloss = self.compute_yloss(cf_instances)
         # proximity_loss = self.compute_proximity_loss(query_instance, cf_instances) if proximity_weight > 0 else 0.0
@@ -245,11 +227,11 @@ class Dice(ExplainerBase):
         return loss
 
 
-    def stop_loop(self, itr, loss_diff, test_preds):
+    def __stop_loop(self, itr, loss_diff, test_preds):
         """Determines the stopping condition for gradient descent."""
 
         # stop GD if max iter is reached
-        if itr >= self.max_iters or self.patience == 0:
+        if itr >= self.num_iters or self.patience == 0:
             return True
 
         # else stop when loss diff is small & all CFs are valid (less or greater than a stopping threshold)

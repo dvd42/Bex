@@ -1,8 +1,36 @@
 import random
-from WhyY import Benchmark
-from WhyY import ExplainerBase
-from WhyY import BasicLogger, WandbLogger
-from WhyY.random_search import EXP_GROUPS
+import wandb
+from Bex import Benchmark
+from Bex.explainers import ExplainerBase
+from Bex.loggers import BasicLogger
+
+
+class WandbLogger(BasicLogger):
+
+
+    def __init__(self, attributes, path, n_batches=10):
+
+        super().__init__(attributes, path, n_batches)
+
+        wandb.init(project="Synbols-benchmark", dir=self.path, config=self.attributes, reinit=True,
+                   tags=["test"])
+
+
+    def accumulate(self, data, images):
+
+        super().accumulate(data, images)
+
+        wandb.log({f"{k}" :v for k, v in data.items()}, commit=True)
+
+
+    def log(self):
+
+        self.metrics = {f"{k}_avg": np.mean(v) for k, v in self.metrics.items()}
+        wandb.log(self.metrics)
+
+        self.prepare_images_to_log()
+
+        wandb.log({"Counterfactuals": self._figure})
 
 
 class MyExplainer(ExplainerBase):
@@ -25,28 +53,26 @@ class MyExplainer(ExplainerBase):
         return z_perturbed
 
 
-dummy_explainer = MyExplainer()
-
 
 # corrs = [0.9, 0.95]
-corrs = [0.5, 0.95]
-clusters = [6, 10]
+corrs = [0.95]
+clusters = [6]
 
 import numpy as np
 import torch
 for _ in range(1):
     for corr in corrs:
         for n_clusters in clusters:
-            bn = Benchmark(dataset="synbols_font", data_path="data", corr_level=corr, n_clusters_att=n_clusters)
+            bn = Benchmark(corr_level=corr, n_corr=n_clusters)
             # bn.run("stylex")
             # bn.run("xgem")
-            # bn.run("ideal")
-            bn.run("dive")
+            bn.run("ideal", logger=WandbLogger)
+            # bn.run("dive")
             # bn.run("dice")
-            #XGEM
-            # bn.run(explainer="dive", lr=0.1, diversity_weight=0, method="none", reconstruction_weight=0.01, lasso_weight=0)
             # bn.run("lcf")
             # bn.run("gs")
+            print(bn.summarize())
+
 # bn = Benchmark(dataset="synbols_font", data_path="explainability_benchmark/data", corr_level=0.95, n_clusters_att=10)
 # bn.run(explainer="dive", lr=0.1, diversity_weight=0, method="none", reconstruction_weight=0.01, lasso_weight=0)
 # bn.run("stylex")
@@ -62,5 +88,3 @@ for _ in range(1):
 # bn.run(explainer="dice", lr=0.1, diversity_weight=1, proximity_weight=1)
 #         # bn.run(explainer="stylex")
         # bn.run(explainer="lcf")
-
-print(bn.summarize())

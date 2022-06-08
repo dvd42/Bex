@@ -6,46 +6,46 @@ from .base import ExplainerBase
 
 
 class Dive(ExplainerBase):
-    """Main class to generate counterfactuals"""
 
-    def __init__(self, num_explanations=10,
-                 diversity_weight=0, lr=0.1, lasso_weight=0.1, reconstruction_weight=0.001, max_iters=50,
+    """
+    DiVE algorithm as described in https://arxiv.org/pdf/2103.10226.pdf
+
+    Args:
+        num_explanations (``int``, optional): number of counterfactuals to be generated (default: 10)
+        lr (``float``, optional): learning rate (default: 0.1)
+        num_iters (``int``, optional): number of gradient descent steps to perform (default: 50)
+        diversity_weight (``float``, optional): weight of the diversity term in the loss function (default: 0)
+        lasso_weight (``float``, optional): factor :math:`\\gamma` that controls the sparsity of the latent space (default: 0.1)
+        reconstruction_weight (``float``, optional): weight of the reconstruction term in the loss function (default: 0.001)
+        method (``string``, optional): method used for gradient masking (default: `'fisher_spectral'`)
+    """
+
+    def __init__(self, num_explanations=10, lr=0.1, num_iters=50,
+                 diversity_weight=0, lasso_weight=0.1, reconstruction_weight=0.001,
                  method="fisher_spectral"):
 
-        """Constructor
-        Args:
-        exp_dict (dict): hyperparameter dictionary
-        savedir (str): root path to experiment directory
-        """
 
         super().__init__()
         self.lr = lr
         self.diversity_weight = diversity_weight
         self.lasso_weight = lasso_weight
         self.reconstruction_weight = reconstruction_weight
-        self.max_iters = max_iters
+        self.num_iters = num_iters
         self.num_explanations = num_explanations
         self.method = method
         self.cache = False
 
 
-    def read_or_write_fim(self, generator, classifier):
+    def __read_or_write_fim(self, generator, classifier):
 
         if "fishers" not in self.loaded_data:
             print("Caching FIM")
-            self.write_fim(generator, classifier)
-        self.read_fim()
+            self.__write_fim(generator, classifier)
+        self.__read_fim()
 
 
-    def write_fim(self, generator, classifier):
+    def __write_fim(self, generator, classifier):
 
-        # for idx, x, y, categorical_att, continuous_att in tqdm(self.train_loader):
-        #     x = x.cuda()
-        #     categorical_att = categorical_att.cuda()
-        #     continuous_att = continuous_att.cuda()
-        #     z = self.generator.model.embed_attributes(categorical_att, continuous_att)
-
-            # self.train_mus = torch.from_numpy(self.loaded_data['train_mus'][...])
         train_mus = (self.train_mus.cuda() - self.latent_mean.cuda()) / self.latent_std.cuda()
         for z in tqdm(train_mus.chunk(train_mus.shape[0] // 512)):
 
@@ -69,32 +69,25 @@ class Dive(ExplainerBase):
             fishers += fisher.numpy()
             del fisher
             del z
-        to_save = dict(fishers_norm=fishers)
+        to_save = dict(fishers=fishers)
 
         for k, v in to_save.items():
             self.loaded_data[k] = v
             print("Done.")
 
 
-    def read_fim(self):
+    def __read_fim(self):
         print("Reading FIM...")
         self.fisher = torch.from_numpy(self.loaded_data['fishers'][...])
-        # self.fisher = torch.from_numpy(self.loaded_data['fishers_norm'][...])
         print("Done...")
 
 
     def explain_batch(self, latents, logits, images, classifier, generator):
 
-        """Uses gradient descent to compute counterfactual explanations
-        Args:
-        batch (tuple): a batch of image ids, images, and labels
-        Returns:
-            dict: a dictionary containing the whole attack history
-        """
 
         # TODO this is hacky
         if not self.cache:
-            self.read_or_write_fim(generator, classifier)
+            self.__read_or_write_fim(generator, classifier)
             self.cache = True
 
         b, c = latents.size()
@@ -109,12 +102,12 @@ class Dive(ExplainerBase):
         epsilon.data *= 0.01
         # epsilon.data *= 0
 
-        mask = self.get_mask(latents)
+        mask = self.__get_mask(latents)
 
         optimizer = torch.optim.Adam([epsilon], lr=self.lr, weight_decay=0)
 
         predicted_labels = predicted_labels[:, None, :].repeat(1, num_explanations, 1).view(-1, logits.shape[1])
-        for _ in range(self.max_iters):
+        for _ in range(self.num_iters):
             optimizer.zero_grad()
             regularizers = []
 
@@ -129,19 +122,19 @@ class Dive(ExplainerBase):
             decoded = decoded.view(b, num_explanations, ch, h, w)
 
             if self.diversity_weight > 0:
-                regularizers.append(self.compute_div_regularizer(epsilon))
+                regularizers.append(self.__compute_div_regularizer(epsilon))
 
             if self.reconstruction_weight > 0:
-                regularizers.append(self.compute_rec_regularizer(images, decoded))
+                regularizers.append(self.__compute_rec_regularizer(images, decoded))
 
             if self.lasso_weight > 0:
-                regularizers.append(self.compute_lasso_regularizer(z_perturbed, latents))
+                regularizers.append(self.__compute_lasso_regularizer(z_perturbed, latents))
 
 
             regularizer = sum(regularizers)
 
             regularizer = regularizer / mask.repeat(repeat_dim, 1, 1).sum()
-            loss = self.compute_loss(logits, predicted_labels, regularizer)
+            loss = self.__compute_loss(logits, predicted_labels, regularizer)
 
             loss.backward()
             optimizer.step()
@@ -149,7 +142,7 @@ class Dive(ExplainerBase):
         return z_perturbed
 
 
-    def compute_loss(self, logits, predicted_labels, regularizer):
+    def __compute_loss(self, logits, predicted_labels, regularizer):
 
         loss_attack = F.binary_cross_entropy_with_logits(logits, 1 - predicted_labels)
         loss = loss_attack + regularizer
@@ -157,19 +150,19 @@ class Dive(ExplainerBase):
         return loss
 
 
-    def compute_lasso_regularizer(self, z_perturbed, latents):
+    def __compute_lasso_regularizer(self, z_perturbed, latents):
         latents = latents[:, None, :]
         lasso_regularizer = torch.abs(z_perturbed - latents).sum()
         return (lasso_regularizer * self.lasso_weight).item()
 
 
-    def compute_rec_regularizer(self, images, decoded):
+    def __compute_rec_regularizer(self, images, decoded):
         reconstruction_regularizer = torch.abs(images[:, None, ...] - decoded).sum()
 
         return (reconstruction_regularizer * self.reconstruction_weight).item()
 
 
-    def compute_div_regularizer(self, epsilon):
+    def __compute_div_regularizer(self, epsilon):
 
         epsilon_normed = epsilon
         epsilon_normed = F.normalize(epsilon_normed, 2, -1)
@@ -182,14 +175,8 @@ class Dive(ExplainerBase):
         return (div_regularizer * self.diversity_weight).item()
 
 
-    def get_mask(self, latents):
-        """Helper function that outputs a binary mask for the latent
-            space during the counterfactual explanation
-        Args:
-            latents (torch.Tensor): dataset latents (precomputed)
-        Returns:
-            torch.Tensor: latents mask
-        """
+    def __get_mask(self, latents):
+
         method = self.method
         num_explanations = self.num_explanations
 

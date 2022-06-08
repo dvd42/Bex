@@ -157,6 +157,25 @@ def get_dataset(splits, data_root, exp_dict):
 
     return ret
 
+class DatasetWrapper(torch.utils.data.Dataset):
+    """Helper class to provide image id"""
+
+    def __init__(self, dataset, indices=None):
+        """Constructor
+        Args:
+        dataset (torch.utils.data.Dataset): Dataset object
+        """
+        self.dataset = dataset
+        self.indices = indices
+        if self.indices is None:
+            self.indices = list(range(len(dataset)))
+
+    def __getitem__(self, item):
+        return (self.indices[item], *self.dataset[self.indices[item]])
+
+    def __len__(self):
+        return len(self.indices)
+
 
 class SynbolsHDF5:
     def __init__(self, path, task, ratios=[0.8, 0.2], mask=None, trim_size=None, raw_labels=True, return_attributes=False):

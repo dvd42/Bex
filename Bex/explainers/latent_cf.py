@@ -7,7 +7,17 @@ from .base import ExplainerBase
 
 class LCF(ExplainerBase):
 
-    def __init__(self, num_explanations=10, p=0.1, tolerance=0.5, lr=0.1, max_iters=50):
+    """ Latent-CF explainer as described in https://arxiv.org/pdf/2012.09301.pdf
+
+    Args:
+        num_explanations (``int``, optional): number of counterfactuals to be generated (default: 10)
+        lr (``float``, optional): learning rate (default: 0.1)
+        num_iters (``int``, optional): max number of gradient descent steps to perform without convergence (default: 50)
+        p (``float``, optional): probability :math:`p` of target counterfactual class.
+        tolerance (``float``, optional) tolerance :math:`tol` value for the loss function (default: 0.5)
+    """
+
+    def __init__(self, num_explanations=10, lr=0.1, num_iters=50, p=0.1, tolerance=0.5):
 
         super().__init__()
 
@@ -15,7 +25,7 @@ class LCF(ExplainerBase):
         self.tolerance = tolerance
         self.p = p
         self.lr = lr
-        self.max_iters = max_iters
+        self.num_iters = num_iters
 
 
     def explain_batch(self, latents, logits, images, classifier, generator):
@@ -33,7 +43,7 @@ class LCF(ExplainerBase):
         i = 0
         z_perturbed = z_perturbed.view(-1, c)
         z_perturbed.requires_grad = True
-        while loss > self.tolerance and i < self.max_iters:
+        while loss > self.tolerance and i < self.num_iters:
 
             p_logits = classifier(generator(z_perturbed))
             diff = torch.sigmoid(p_logits)[torch.arange(labels.shape[0]), labels] - self.p

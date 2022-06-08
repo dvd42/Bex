@@ -9,6 +9,15 @@ torch.backends.cudnn.deterministic = True
 
 class Stylex(ExplainerBase):
 
+    """ StylEx explainer as described in https://arxiv.org/pdf/2104.13369.pdf
+
+    num_explanations (``int``, optional): number of counterfactuals to be generated (default: 10)
+    t (``float``, optional): perturbation threshold :math:`t` to consider a sample *explained* (default: 0.3)
+    shift_size (``float``, optional): amount of shift applied to each coordinate (default: 0.8)
+    strategy(``string``, optional): selection strategy `'independent'` or `'subset'` (default: `'independent'`)
+
+    """
+
     def __init__(self, num_explanations=10, t=0.3, shift_size=0.8, strategy="independent"):
 
         super().__init__()
@@ -36,10 +45,10 @@ class Stylex(ExplainerBase):
         n_images = b * self.num_explanations
         z_perturbed = z_perturbed.view(n_images, c)
 
-        changes = self._find_style_changes(z_perturbed).cuda()
+        changes = self.__find_style_changes(z_perturbed).cuda()
 
-        diff = self._compute_diff(z_perturbed, changes, labels, classifier, generator)
-        S, D = self._find_att(diff)
+        diff = self.__compute_diff(z_perturbed, changes, labels, classifier, generator)
+        S, D = self.__find_att(diff)
 
         if self.strategy == "independent":
             top_s = S[:self.num_explanations]
@@ -70,7 +79,7 @@ class Stylex(ExplainerBase):
         return z_perturbed.view(b, -1, c)
 
 
-    def _compute_diff(self, z_perturbed, changes, labels, classifier, generator):
+    def __compute_diff(self, z_perturbed, changes, labels, classifier, generator):
 
         n_images, c = z_perturbed.size()
         logits = classifier(generator(z_perturbed))
@@ -91,21 +100,21 @@ class Stylex(ExplainerBase):
         return diff
 
 
-    def _find_style_changes(self, z_perturbed):
+    def __find_style_changes(self, z_perturbed):
 
         n_images, c = z_perturbed.size()
         changes = torch.zeros(n_images, c, 2)
         for x, z in enumerate(z_perturbed):
             for s, style in enumerate(z):
-                c1 = self._change_direction(style, s, 0)
-                c2 = self._change_direction(style, s, 1)
+                c1 = self.__change_direction(style, s, 0)
+                c2 = self.__change_direction(style, s, 1)
                 changes[x, s, 0] = c1
                 changes[x, s, 1] = c2
 
         return changes
 
 
-    def _change_direction(self, coordinate, idx, direction):
+    def __change_direction(self, coordinate, idx, direction):
 
         style_min = self.mus_min[idx]
         style_max = self.mus_max[idx]
@@ -118,7 +127,7 @@ class Stylex(ExplainerBase):
         return coordinate
 
 
-    def _find_att(self, diff):
+    def __find_att(self, diff):
 
         n_images, c, _ = diff.size()
         to_explain = list(range(n_images))
