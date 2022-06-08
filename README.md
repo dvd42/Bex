@@ -1,4 +1,4 @@
-![#Bex](https://github.com/dvd42/Bex/blob/gh-pages/images/cover.png) 
+![#Bex](https://github.com/dvd42/Bex/blob/gh-pages/images/cover.jpg) 
 
 # A Benchmark For Counterfactual Explainers
 
