@@ -33,6 +33,10 @@ class ExplainerBase:
                     z_perturbed = z + random.random() # create counterfactuals z'
 
                     return z_perturbed.view(b, self.num_explanations, -1)
+
+            bn = bex.Benchmark()
+            bn.run(DummyExplainer, num_explanations=10)
+
     """
 
     def __init__(self):

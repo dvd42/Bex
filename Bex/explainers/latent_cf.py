@@ -7,7 +7,7 @@ from .base import ExplainerBase
 
 class LCF(ExplainerBase):
 
-    """ Latent-CF explainer as described in https://arxiv.org/pdf/2012.09301.pdf
+    """ Latent-CF explainer as described in https://arxiv.org/abs/2012.09301
 
     Args:
         num_explanations (``int``, optional): number of counterfactuals to be generated (default: 10)
