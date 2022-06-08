@@ -125,10 +125,13 @@ The benchmark also supports custom methods, for an example on how to create and 
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>explainer</strong> (<code class="docutils literal notranslate"><span class="pre">string</span></code>) – explainability method to be evaluated</p></li>
+<li><p><strong>explainer</strong> (<code class="docutils literal notranslate"><span class="pre">string</span></code>) – explainability method to be evaluated. Must be one of <a class="reference internal" href="Bex.explainers.html#Bex.explainers.Stylex" title="Bex.explainers.Stylex"><code class="xref py py-class docutils literal notranslate"><span class="pre">'stylex'</span></code></a>,
+<a class="reference internal" href="Bex.explainers.html#Bex.explainers.Dive" title="Bex.explainers.Dive"><code class="xref py py-class docutils literal notranslate"><span class="pre">'dive'</span></code></a>, <a class="reference internal" href="Bex.explainers.html#Bex.explainers.Xgem" title="Bex.explainers.Xgem"><code class="xref py py-class docutils literal notranslate"><span class="pre">'xgem'</span></code></a>,
+<a class="reference internal" href="Bex.explainers.html#Bex.explainers.LCF" title="Bex.explainers.LCF"><code class="xref py py-class docutils literal notranslate"><span class="pre">'lcf'</span></code></a>, <a class="reference internal" href="Bex.explainers.html#Bex.explainers.Dice" title="Bex.explainers.Dice"><code class="xref py py-class docutils literal notranslate"><span class="pre">'dice'</span></code></a>,
+<a class="reference internal" href="Bex.explainers.html#Bex.explainers.GrowingSpheres" title="Bex.explainers.GrowingSpheres"><code class="xref py py-class docutils literal notranslate"><span class="pre">'gs'</span></code></a></p></li>
 <li><p><strong>logger</strong> (<a class="reference internal" href="Bex.loggers.html#Bex.loggers.BasicLogger" title="Bex.loggers.BasicLogger"><code class="xref py py-class docutils literal notranslate"><span class="pre">BasicLogger</span></code></a>, optional) – logger to log results and examples, if <cite>None</cite> nothing will be logged (default: <cite>None</cite>)</p></li>
 <li><p><strong>output_path</strong> (<code class="docutils literal notranslate"><span class="pre">string</span></code>, optional) – directory to store results and examples if <cite>logger</cite> is not <cite>None</cite> (default: output/<cite>datetime.now()</cite>)</p></li>
-<li><p><strong>**kwargs</strong> – keyword arguments for the explainer <a class="reference internal" href="Bex.explainers.html#module-Bex.explainers" title="Bex.explainers"><code class="xref py py-mod docutils literal notranslate"><span class="pre">Bex.explainers</span></code></a></p></li>
+<li><p><strong>**kwargs</strong> – keyword arguments for the explainer (see <a class="reference internal" href="Bex.explainers.html#module-Bex.explainers" title="Bex.explainers"><code class="xref py py-mod docutils literal notranslate"><span class="pre">Bex.explainers</span></code></a>)</p></li>
 </ul>
 </dd>
 </dl>

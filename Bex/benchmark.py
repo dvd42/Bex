@@ -374,10 +374,14 @@ class Benchmark:
         """Evaluates an explainer on the Bex benchmark
 
         Args:
-            explainer (``string``): explainability method to be evaluated
+            explainer (``string``): explainability method to be evaluated. Must be one of :py:class:`'stylex' <Bex.explainers.Stylex>`,
+                                        :py:class:`'dive' <Bex.explainers.Dive>`, :py:class:`'xgem' <Bex.explainers.Xgem>`,
+                                        :py:class:`'lcf' <Bex.explainers.LCF>`, :py:class:`'dice' <Bex.explainers.Dice>`,
+                                        :py:class:`'gs' <Bex.explainers.GrowingSpheres>`
+
             logger (:py:class:`BasicLogger <Bex.loggers.BasicLogger>`, optional): logger to log results and examples, if `None` nothing will be logged (default: `None`)
             output_path (``string``, optional): directory to store results and examples if `logger` is not `None` (default: output/`datetime.now()`)
-            **kwargs: keyword arguments for the explainer :py:mod:`Bex.explainers`
+            **kwargs: keyword arguments for the explainer (see :py:mod:`Bex.explainers`)
 
         Example:
             .. code-block:: python
