@@ -67,7 +67,9 @@ class DummyExplainer(bex.explainers.ExplainerBase):
         self.num_explanations = num_explanations
 
     # This function describes the behaviour of the custom explainer for a given batch
-    def explain_batch(self, latents: torch.Tensor , logits: torch.Tensor, images: torch.Tensor, classifier: torch.nn.Module, generator: Callable[[torch.Tensor], torch.Tensor]) -> torch.Tensor:
+    def explain_batch(self, latents: torch.Tensor, logits: torch.Tensor, 
+                      images: torch.Tensor, classifier: torch.nn.Module, 
+                      generator: Callable[[torch.Tensor], torch.Tensor]) -> torch.Tensor:
 
         b = latents.shape[0]
         # we will produce self.num_explanations counterfactuals per sample
