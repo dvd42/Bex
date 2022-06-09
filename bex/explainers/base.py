@@ -124,7 +124,7 @@ class ExplainerBase:
             logits (``torch.Tensor``): classifier logits given :math:`\\textbf{z}`
             images (``torch.Tensor``): images :math:`x` produced by the generator given :math:`\\textbf{z}`
             classifier (``torch.nn.Module``): classifier to explain :math:`\\hat{f}(x)`
-            generator (``callable``): function that takes a batch of latents :math:`\\textbf{z'}` and returns a batch of images
+            generator (``Callable``): function that takes a batch of latents :math:`\\textbf{z'}` and returns a batch of images
 
         Returns:
             (``torch.Tensor``): the obtained counterfactuals :math:`\\textbf{z'}` for each batch element

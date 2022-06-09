@@ -112,7 +112,7 @@
 <li><p><strong>logits</strong> (<code class="docutils literal notranslate"><span class="pre">torch.Tensor</span></code>) – classifier logits given <span class="math notranslate nohighlight">\(\textbf{z}\)</span></p></li>
 <li><p><strong>images</strong> (<code class="docutils literal notranslate"><span class="pre">torch.Tensor</span></code>) – images <span class="math notranslate nohighlight">\(x\)</span> produced by the generator given <span class="math notranslate nohighlight">\(\textbf{z}\)</span></p></li>
 <li><p><strong>classifier</strong> (<code class="docutils literal notranslate"><span class="pre">torch.nn.Module</span></code>) – classifier to explain <span class="math notranslate nohighlight">\(\hat{f}(x)\)</span></p></li>
-<li><p><strong>generator</strong> (<code class="docutils literal notranslate"><span class="pre">callable</span></code>) – function that takes a batch of latents <span class="math notranslate nohighlight">\(\textbf{z'}\)</span> and returns a batch of images</p></li>
+<li><p><strong>generator</strong> (<code class="docutils literal notranslate"><span class="pre">Callable</span></code>) – function that takes a batch of latents <span class="math notranslate nohighlight">\(\textbf{z'}\)</span> and returns a batch of images</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
@@ -162,7 +162,7 @@
 <li><p><strong>logits</strong> (<code class="docutils literal notranslate"><span class="pre">torch.Tensor</span></code>) – classifier logits given <span class="math notranslate nohighlight">\(\textbf{z}\)</span></p></li>
 <li><p><strong>images</strong> (<code class="docutils literal notranslate"><span class="pre">torch.Tensor</span></code>) – images <span class="math notranslate nohighlight">\(x\)</span> produced by the generator given <span class="math notranslate nohighlight">\(\textbf{z}\)</span></p></li>
 <li><p><strong>classifier</strong> (<code class="docutils literal notranslate"><span class="pre">torch.nn.Module</span></code>) – classifier to explain <span class="math notranslate nohighlight">\(\hat{f}(x)\)</span></p></li>
-<li><p><strong>generator</strong> (<code class="docutils literal notranslate"><span class="pre">callable</span></code>) – function that takes a batch of latents <span class="math notranslate nohighlight">\(\textbf{z'}\)</span> and returns a batch of images</p></li>
+<li><p><strong>generator</strong> (<code class="docutils literal notranslate"><span class="pre">Callable</span></code>) – function that takes a batch of latents <span class="math notranslate nohighlight">\(\textbf{z'}\)</span> and returns a batch of images</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
@@ -202,12 +202,12 @@ override the <code class="docutils literal notranslate"><span class="pre">explai
 
     <span class="k">def</span> <span class="nf">explain_batch</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">latents</span><span class="p">,</span> <span class="n">logits</span><span class="p">,</span> <span class="n">images</span><span class="p">,</span> <span class="n">classifier</span><span class="p">,</span> <span class="n">generator</span><span class="p">):</span>
 
-        <span class="n">b</span> <span class="o">=</span> <span class="n">latents</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">b</span><span class="p">,</span> <span class="n">c</span> <span class="o">=</span> <span class="n">latents</span><span class="o">.</span><span class="n">size</span><span class="p">()</span>
         <span class="c1"># we will produce self.num_explanations counterfactuals per sample</span>
         <span class="n">z</span> <span class="o">=</span> <span class="n">latents</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_explanations</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
         <span class="n">z_perturbed</span> <span class="o">=</span> <span class="n">z</span> <span class="o">+</span> <span class="n">random</span><span class="o">.</span><span class="n">random</span><span class="p">()</span> <span class="c1"># create counterfactuals z&#39;</span>
 
-        <span class="k">return</span> <span class="n">z_perturbed</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="n">b</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_explanations</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">z_perturbed</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="n">b</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_explanations</span><span class="p">,</span> <span class="n">c</span><span class="p">)</span>
 
 <span class="n">bn</span> <span class="o">=</span> <span class="n">bex</span><span class="o">.</span><span class="n">Benchmark</span><span class="p">()</span>
 <span class="n">bn</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">DummyExplainer</span><span class="p">,</span> <span class="n">num_explanations</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
@@ -224,7 +224,7 @@ override the <code class="docutils literal notranslate"><span class="pre">explai
 <li><p><strong>logits</strong> (<code class="docutils literal notranslate"><span class="pre">torch.Tensor</span></code>) – classifier logits given <span class="math notranslate nohighlight">\(\textbf{z}\)</span></p></li>
 <li><p><strong>images</strong> (<code class="docutils literal notranslate"><span class="pre">torch.Tensor</span></code>) – images <span class="math notranslate nohighlight">\(x\)</span> produced by the generator given <span class="math notranslate nohighlight">\(\textbf{z}\)</span></p></li>
 <li><p><strong>classifier</strong> (<code class="docutils literal notranslate"><span class="pre">torch.nn.Module</span></code>) – classifier to explain <span class="math notranslate nohighlight">\(\hat{f}(x)\)</span></p></li>
-<li><p><strong>generator</strong> (<code class="docutils literal notranslate"><span class="pre">callable</span></code>) – function that takes a batch of latents <span class="math notranslate nohighlight">\(\textbf{z'}\)</span> and returns a batch of images</p></li>
+<li><p><strong>generator</strong> (<code class="docutils literal notranslate"><span class="pre">Callable</span></code>) – function that takes a batch of latents <span class="math notranslate nohighlight">\(\textbf{z'}\)</span> and returns a batch of images</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
@@ -265,7 +265,7 @@ decrease_radius(<code class="docutils literal notranslate"><span class="pre">flo
 <li><p><strong>logits</strong> (<code class="docutils literal notranslate"><span class="pre">torch.Tensor</span></code>) – classifier logits given <span class="math notranslate nohighlight">\(\textbf{z}\)</span></p></li>
 <li><p><strong>images</strong> (<code class="docutils literal notranslate"><span class="pre">torch.Tensor</span></code>) – images <span class="math notranslate nohighlight">\(x\)</span> produced by the generator given <span class="math notranslate nohighlight">\(\textbf{z}\)</span></p></li>
 <li><p><strong>classifier</strong> (<code class="docutils literal notranslate"><span class="pre">torch.nn.Module</span></code>) – classifier to explain <span class="math notranslate nohighlight">\(\hat{f}(x)\)</span></p></li>
-<li><p><strong>generator</strong> (<code class="docutils literal notranslate"><span class="pre">callable</span></code>) – function that takes a batch of latents <span class="math notranslate nohighlight">\(\textbf{z'}\)</span> and returns a batch of images</p></li>
+<li><p><strong>generator</strong> (<code class="docutils literal notranslate"><span class="pre">Callable</span></code>) – function that takes a batch of latents <span class="math notranslate nohighlight">\(\textbf{z'}\)</span> and returns a batch of images</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
@@ -313,7 +313,7 @@ decrease_radius(<code class="docutils literal notranslate"><span class="pre">flo
 <li><p><strong>logits</strong> (<code class="docutils literal notranslate"><span class="pre">torch.Tensor</span></code>) – classifier logits given <span class="math notranslate nohighlight">\(\textbf{z}\)</span></p></li>
 <li><p><strong>images</strong> (<code class="docutils literal notranslate"><span class="pre">torch.Tensor</span></code>) – images <span class="math notranslate nohighlight">\(x\)</span> produced by the generator given <span class="math notranslate nohighlight">\(\textbf{z}\)</span></p></li>
 <li><p><strong>classifier</strong> (<code class="docutils literal notranslate"><span class="pre">torch.nn.Module</span></code>) – classifier to explain <span class="math notranslate nohighlight">\(\hat{f}(x)\)</span></p></li>
-<li><p><strong>generator</strong> (<code class="docutils literal notranslate"><span class="pre">callable</span></code>) – function that takes a batch of latents <span class="math notranslate nohighlight">\(\textbf{z'}\)</span> and returns a batch of images</p></li>
+<li><p><strong>generator</strong> (<code class="docutils literal notranslate"><span class="pre">Callable</span></code>) – function that takes a batch of latents <span class="math notranslate nohighlight">\(\textbf{z'}\)</span> and returns a batch of images</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
@@ -354,7 +354,7 @@ strategy(<code class="docutils literal notranslate"><span class="pre">string</sp
 <li><p><strong>logits</strong> (<code class="docutils literal notranslate"><span class="pre">torch.Tensor</span></code>) – classifier logits given <span class="math notranslate nohighlight">\(\textbf{z}\)</span></p></li>
 <li><p><strong>images</strong> (<code class="docutils literal notranslate"><span class="pre">torch.Tensor</span></code>) – images <span class="math notranslate nohighlight">\(x\)</span> produced by the generator given <span class="math notranslate nohighlight">\(\textbf{z}\)</span></p></li>
 <li><p><strong>classifier</strong> (<code class="docutils literal notranslate"><span class="pre">torch.nn.Module</span></code>) – classifier to explain <span class="math notranslate nohighlight">\(\hat{f}(x)\)</span></p></li>
-<li><p><strong>generator</strong> (<code class="docutils literal notranslate"><span class="pre">callable</span></code>) – function that takes a batch of latents <span class="math notranslate nohighlight">\(\textbf{z'}\)</span> and returns a batch of images</p></li>
+<li><p><strong>generator</strong> (<code class="docutils literal notranslate"><span class="pre">Callable</span></code>) – function that takes a batch of latents <span class="math notranslate nohighlight">\(\textbf{z'}\)</span> and returns a batch of images</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
@@ -401,7 +401,7 @@ strategy(<code class="docutils literal notranslate"><span class="pre">string</sp
 <li><p><strong>logits</strong> (<code class="docutils literal notranslate"><span class="pre">torch.Tensor</span></code>) – classifier logits given <span class="math notranslate nohighlight">\(\textbf{z}\)</span></p></li>
 <li><p><strong>images</strong> (<code class="docutils literal notranslate"><span class="pre">torch.Tensor</span></code>) – images <span class="math notranslate nohighlight">\(x\)</span> produced by the generator given <span class="math notranslate nohighlight">\(\textbf{z}\)</span></p></li>
 <li><p><strong>classifier</strong> (<code class="docutils literal notranslate"><span class="pre">torch.nn.Module</span></code>) – classifier to explain <span class="math notranslate nohighlight">\(\hat{f}(x)\)</span></p></li>
-<li><p><strong>generator</strong> (<code class="docutils literal notranslate"><span class="pre">callable</span></code>) – function that takes a batch of latents <span class="math notranslate nohighlight">\(\textbf{z'}\)</span> and returns a batch of images</p></li>
+<li><p><strong>generator</strong> (<code class="docutils literal notranslate"><span class="pre">Callable</span></code>) – function that takes a batch of latents <span class="math notranslate nohighlight">\(\textbf{z'}\)</span> and returns a batch of images</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
