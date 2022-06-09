@@ -11,7 +11,7 @@ class ExplainerBase:
     Base class for all explainer methods
 
     If you wish to test your own explainer on our benchmark use this as a base class and
-    override the ``explain_batch`` method
+    override the ``explain_batch()`` method
 
     Example:
 
@@ -20,7 +20,7 @@ class ExplainerBase:
             import bex
             import random
 
-            class DummyExplainer(ExplainerBase):
+            class DummyExplainer(bex.explainers.ExplainerBase):
 
                 def __init__(self, num_explanations):
                     super().__init__()
