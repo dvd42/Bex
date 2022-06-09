@@ -1,4 +1,7 @@
-![#Bex](images/cover.jpg) 
+<!-- ![#Bex](images/cover.jpg) --> 
+<object data="images/cover.pdf" type="application/pdf" width="700px" height="700px"> 
+<embed src="images/cover.pdf">  </embed> 
+</object>
 
 # A Benchmark For Counterfactual Explainers
 
@@ -44,12 +47,10 @@ The benchmark includes different setting by modifying the number of correlated
 ### Evaluating one of the predefined explainers
 
 ```python
-
 import bex
 bn = bex.Benchmark(n_corr=6, corr_level=0.95)
 bn.run("stylex") # or any of: "dive", "xgem", "lcf", "dice", "gs"
 print(bn.summarize()) # get the explainer's performance
-
 ```
 
 
@@ -58,7 +59,6 @@ print(bn.summarize()) # get the explainer's performance
 You can evaluate your own explainer like so:
 
 ```python
-
 import random
 import bex
 
@@ -81,7 +81,6 @@ class DummyExplainer(bex.explainers.ExplainerBase):
 bn = bex.Benchmark()
 bn.run(DummyExplainer, num_explanations=10)
 print(bn.summarize()) # get the explainer's performance
-
 ```
 ## Contact 
 
