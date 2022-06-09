@@ -105,7 +105,7 @@ class BasicLogger:
     def prepare_images_to_log(self):
 
         """Helper function to build a figure with the accumulated images. Must be called
-        before ``log()``
+        before :py:meth:`log() <Bex.loggers.BasicLogger.log>`
 
         """
 

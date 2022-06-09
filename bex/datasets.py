@@ -83,7 +83,6 @@ def download_url(url, path):
     if not os.path.isfile(path):
         with open(path, 'wb') as file:
             for i, part in enumerate(parts):
-                print("Downloading part %d/%d" %(i + 1, len(parts)))
                 # Streaming, so we can iterate over the response.
                 response = requests.get(part, stream=True)
                 total_size_in_bytes = int(response.headers.get('content-length', 0))
@@ -190,7 +189,6 @@ class SynbolsHDF5:
             print("Converting json strings to labels...")
             with multiprocessing.Pool(8) as pool:
                 self.y = pool.map(json.loads, y)
-            print("Done converting.")
             if isinstance(mask, str):
                 if "split" in data:
                     if mask in data['split'] and mask == "random":
@@ -237,7 +235,6 @@ class SynbolsHDF5:
                     for k in str2int.keys():
                         item[k] = str2int[k][item[k]]
 
-                print("Done parsing raw labels.")
             else:
                 self.raw_labels = None
 
@@ -245,7 +242,6 @@ class SynbolsHDF5:
             self.trim_size = trim_size
             if trim_size is not None and len(self.x) > self.trim_size:
                 self.mask = self.trim_dataset(self.mask)
-            print("Done reading hdf5.")
 
     def trim_dataset(self, mask, train_size=60000, val_test_size=20000):
         labelset = np.sort(np.unique(self.y))
@@ -330,7 +326,6 @@ class GeneratedSynbols:
             print("Converting json strings to labels...")
             with multiprocessing.Pool(8) as pool:
                 self.y = pool.map(json.loads, y)
-            print("Done converting.")
 
             if raw_labels:
                 print("Parsing raw labels...")
@@ -359,14 +354,11 @@ class GeneratedSynbols:
                 #     for k in str2int:
                 #         item[k] = str2int[k][item[k]]
 
-                print("Done parsing raw labels.")
             else:
                 self.raw_labels = None
 
             # self._y = self.generate_labels()
             self.y = data["labels"][...]
-            print("Done reading hdf5.")
-
 
 
     def generate_labels(self):

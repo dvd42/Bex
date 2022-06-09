@@ -33,6 +33,10 @@ class ExplainerBase:
                     z_perturbed = z + random.random() # create counterfactuals z'
 
                     return z_perturbed.view(b, self.num_explanations, -1)
+
+            bn = bex.Benchmark()
+            bn.run(DummyExplainer, num_explanations=10)
+
     """
 
     def __init__(self):
@@ -91,7 +95,6 @@ class ExplainerBase:
         with h5py.File(self.digest, 'a') as outfile:
             for k, v in to_save.items():
                 outfile[f"{prefix}_{k}"] = v
-                print("Done.")
 
 
     def _get_latents(self, idx):

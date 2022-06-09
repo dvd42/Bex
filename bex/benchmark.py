@@ -1,13 +1,10 @@
 import os
-import wandb
 import pandas as pd
 import torch
 import copy
 import numpy as np
 import torch.nn.functional as F
 from tqdm import tqdm
-from sklearn.metrics import auc
-import wandb
 
 from .models import get_model
 from .explainers import get_explainer
@@ -33,7 +30,7 @@ class Benchmark:
 
     def __init__(self, batch_size=12, num_workers=2, n_samples=800, corr_level=0.95, n_corr=10, seed=0):
 
-        self.data_path = "data"
+        self.data_path = os.path.join(os.path.expanduser("~"), ".bex")
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.n_samples = n_samples
@@ -400,18 +397,10 @@ class Benchmark:
 
             latents, logits, x, y, categorical_att, continuous_att = self._prepare_batch(batch, explainer)
             b, c = latents.size()
-            assert torch.allclose(continuous_att.cpu(), latents[:, -5:].cpu() * explainer.latent_std[-5:] + explainer.latent_mean[-5:])
 
             generator = self._get_generator_callable(explainer)
-            with torch.no_grad():
-                latents = self.encoder(categorical_att, continuous_att)
-                latents = (latents - explainer.latent_mean.cuda()) / explainer.latent_std.cuda()
-                logits2 = self.classifier.model(generator(latents))
-
-            assert torch.all(logits2.argmax(1) == logits.argmax(1))
             z_perturbed = explainer.explain_batch(latents, logits, x, self.classifier.model, generator)
             z_perturbed = z_perturbed.detach()
-
 
             z_perturbed = self._bound_z(z_perturbed, latents, explainer)
 

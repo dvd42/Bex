@@ -8,7 +8,7 @@ from .base import ExplainerBase
 class Dive(ExplainerBase):
 
     """
-    DiVE algorithm as described in https://arxiv.org/pdf/2103.10226.pdf
+    DiVE algorithm as described in https://arxiv.org/abs/2103.10226
 
     Args:
         num_explanations (``int``, optional): number of counterfactuals to be generated (default: 10)

@@ -131,9 +131,6 @@ dmypy.json
 *.npy
 explore.ipynb
 
-# images
-*.png
-
 # haven
 job_config.py
 
