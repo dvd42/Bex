@@ -71,12 +71,12 @@ class DummyExplainer(bex.explainers.ExplainerBase):
                       images: torch.Tensor, classifier: torch.nn.Module, 
                       generator: Callable[[torch.Tensor], torch.Tensor]) -> torch.Tensor:
 
-        b = latents.shape[0]
+        b, c = latents.shape
         # we will produce self.num_explanations counterfactuals per sample
         z = latents[:, None, :].repeat(1, self.num_explanations, 1)
         z_perturbed = z + random.random() # create counterfactuals z'
 
-        return z_perturbed.view(b, self.num_explanations, -1)
+        return z_perturbed.view(b, self.num_explanations, c)
 
 bn = bex.Benchmark()
 bn.run(DummyExplainer, num_explanations=10)
