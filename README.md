@@ -14,7 +14,7 @@ Code repository for the Bex explainability benchmark. Models and datasets that c
 
 ## Installation
 
-The recommended way to install Bex is via [PyPI](https://pypi.org/project/Bex/).
+The recommended way to install Bex is via [PyPI](https://pypi.org/project/bex/).
 
 ```bash
 pip install bex
