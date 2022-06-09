@@ -1,7 +1,4 @@
-<!-- ![#Bex](images/cover.jpg) --> 
-<object data="images/cover.pdf" type="application/pdf" width="700px" height="700px"> 
-<embed src="images/cover.pdf">  </embed> 
-</object>
+<img src="images/cover.svg" alt="Main figure">
 
 # A Benchmark For Counterfactual Explainers
 
