@@ -362,7 +362,7 @@ class Benchmark:
 
                 bn = bex.Benchmark()
                 # run dive and dice
-                to_run = [{"explainer": "dive": "lr": 0.1}, {"explainer": "dice": "lr": 0.01}]
+                to_run = [{"explainer": "dive", "lr": 0.1}, {"explainer": "dice", "lr": 0.01}]
                 bn.runs(to_run)
         """
 
