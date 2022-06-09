@@ -12,7 +12,8 @@
 
 ## Description 
 
-Code repository for the Bex explainability benchmark. Models and datasets that comprise the benchmark can be found [here](https://zenodo.org/record/6616598)
+Code repository for the Bex explainability benchmark. Models and datasets that comprise the benchmark can be found [here](https://zenodo.org/record/6616598). They are 
+automatically downloaded when the benchmark is ran.
 
 
 ## Installation
@@ -48,7 +49,7 @@ The benchmark includes different setting by modifying the number of correlated
 
 ```python
 import bex
-bn = bex.Benchmark(n_corr=6, corr_level=0.95)
+bn = bex.Benchmark(n_corr=6, corr_level=0.95) # downloads necessary files
 bn.run("stylex") # or any of: "dive", "xgem", "lcf", "dice", "gs"
 print(bn.summarize()) # get the explainer's performance
 ```
@@ -69,7 +70,7 @@ class DummyExplainer(bex.explainers.ExplainerBase):
         self.num_explanations = num_explanations
 
     # This function describes the behaviour of the custom explainer for a given batch
-    def explain_batch(self, latents, logits, images, classifier, generator):
+    def explain_batch(self, latents: torch.Tensor , logits: torch.Tensor, images: torch.Tensor, classifier: torch.nn.Module, generator: Callable[[torch.Tensor], torch.Tensor]) -> torch.Tensor:
 
         b = latents.shape[0]
         # we will produce self.num_explanations counterfactuals per sample
