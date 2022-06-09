@@ -1,10 +1,10 @@
-Bex.loggers package
+bex.loggers package
 ===================
 
 Module contents
 ---------------
 
-.. automodule:: Bex.loggers
+.. automodule:: bex.loggers
    :members:
    :undoc-members:
    :show-inheritance:

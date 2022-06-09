@@ -1,7 +1,7 @@
-Bex
+bex
 ===
 
 .. toctree::
    :maxdepth: 4
 
-   Bex
+   bex

@@ -1,4 +1,4 @@
-Bex package
+bex package
 ===========
 
 Subpackages
@@ -7,13 +7,13 @@ Subpackages
 .. toctree::
    :maxdepth: 4
 
-   Bex.explainers
-   Bex.loggers
+   bex.explainers
+   bex.loggers
 
 Module contents
 ---------------
 
-.. automodule:: Bex
+.. automodule:: bex
    :members:
    :undoc-members:
    :show-inheritance:

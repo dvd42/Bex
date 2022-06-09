@@ -1,10 +1,10 @@
-Bex.explainers package
+bex.explainers package
 ======================
 
 Module contents
 ---------------
 
-.. automodule:: Bex.explainers
+.. automodule:: bex.explainers
    :members:
    :undoc-members:
    :show-inheritance:
