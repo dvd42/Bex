@@ -486,12 +486,14 @@ class Benchmark:
                                 "inverse_color_perturbation": [], "scale_perturbation": [], "rotation_perturbation": []}
         self.type_of_cf = {"Ecc": [], "E_causal": [], "E_trivial": []}
 
-        causal_artifact = wandb.Artifact(f"Causal_5_{self.current_config['explainer_name']}_{self.corr_level}_{self.n_clusters_att}", type="Causal Counterfactuals_5")
-        trivial_artifact = wandb.Artifact(f"Trivial_5_{self.current_config['explainer_name']}_{self.corr_level}_{self.n_clusters_att}", type="Trivial Counterfactuals_5")
-        changes_artifact = wandb.Artifact(f"Change_5_{self.current_config['explainer_name']}_{self.corr_level}_{self.n_clusters_att}", type="Change Counterfactuals_5")
-        causal_table = wandb.Table(columns=["ID", "Original", "Counterfactuals", "E_causal"])
-        trivial_table = wandb.Table(columns=["ID", "Original", "Counterfactuals", "E_Trivial"])
-        changes_table = wandb.Table(columns=["ID", "Original", "Counterfactuals", "E_cc"])
+        # causal_artifact = wandb.Artifact(f"Causal_5_{self.current_config['explainer_name']}_{self.corr_level}_{self.n_clusters_att}", type="Causal Counterfactuals_5")
+        ortho_atrifact = wandb.Artifact(f"Ortho_5_{self.current_config['explainer_name']}_{self.corr_level}_{self.n_clusters_att}", type="Orthogonal Counterfactuals_5")
+        # trivial_artifact = wandb.Artifact(f"Trivial_5_{self.current_config['explainer_name']}_{self.corr_level}_{self.n_clusters_att}", type="Trivial Counterfactuals_5")
+        # changes_artifact = wandb.Artifact(f"Change_5_{self.current_config['explainer_name']}_{self.corr_level}_{self.n_clusters_att}", type="Change Counterfactuals_5")
+        # causal_table = wandb.Table(columns=["ID", "Original", "Counterfactuals", "E_causal"])
+        ortho_table = wandb.Table(columns=["ID", "idx", "Original", "Counterfactuals", "E_orthogonal"])
+        # trivial_table = wandb.Table(columns=["ID", "Original", "Counterfactuals", "E_Trivial"])
+        # changes_table = wandb.Table(columns=["ID", "Original", "Counterfactuals", "E_cc"])
         for i, batch in enumerate(tqdm(self.val_loader)):
 
             latents, logits, x, y, categorical_att, continuous_att = self._prepare_batch(batch, explainer)
@@ -521,26 +523,52 @@ class Benchmark:
             similarity, success, idxs, extra = self._compute_metrics(latents, z_perturbed, successful_cf, explainer)
 
             from torchvision.utils import make_grid
+            import matplotlib.pyplot as plt
             import cv2
 
-            if causal[0].numel() != 0:
-                originals = wandb.Image(make_grid(x[causal[0]]))
-                causal_cfs = wandb.Image(make_grid(decoded.view(decoded.shape[0] // 10, 10, 3, 32, 32)[causal[0], causal[1]]))
-                causal_table.add_data(i, originals, causal_cfs, self.type_of_cf["E_causal"][-1])
-            # for i, (b, ne) in enumerate(zip(causal[0], causal[1])):
-                # for i, (b, ne) in enumerate(zip(trivial[0], trivial[1])):
-                #     cv2.imshow(f"original", x[b].permute(1, 2, 0).cpu().detach().numpy())
-                #     cv2.imshow(f"counterfactual", decoded.view(12, 10, 3, 32, 32)[b, ne].permute(1, 2, 0).cpu().detach().numpy())
+            causal_map = {"dive": [2, 5, 31, 36, 32], "stylex": [2, 9, 17, 33, 32, 34, 46, 51, 57],
+                          "xgem": [9, 2, 25, 26, 32, 33, 51, 50, 61, 62],
+                          "dice": [0, 1, 4, 8, 11, 14, 18, 35, 49, 46, 44, 52, 60, 61]}
 
-            if trivial[0].numel() != 0:
-                originals = wandb.Image(make_grid(x[trivial[0]]))
-                trivial_cfs = wandb.Image(make_grid(decoded.view(decoded.shape[0] // 10, 10, 3, 32, 32)[trivial[0], trivial[1]]))
-                trivial_table.add_data(i, originals, trivial_cfs, self.type_of_cf["E_trivial"][-1])
+            # if causal[0].numel() != 0:
+            #     # if i in causal_map[self.current_config["explainer_name"]]:
+            #     originals = wandb.Image(make_grid(x[causal[0]]))
+            #     causal_cfs = wandb.Image(make_grid(decoded.view(decoded.shape[0] // 10, 10, 3, 32, 32)[causal[0], causal[1]]))
+            #     causal_table.add_data(i, originals, causal_cfs, self.type_of_cf["E_causal"])
+                    # print(i)
+                    # for b, ne in zip(causal[0], causal[1]):
+                    #     # for i, (b, ne) in enumerate(zip(trivial[0], trivial[1])):
+                    #     o = x[b].permute(1, 2, 0).cpu().detach().numpy()
+                    #     d = decoded.view(12, 10, 3, 32, 32)[b, ne].permute(1, 2, 0).cpu().detach().numpy()
+                    #     cv2.imshow("original", o)
+                    #     cv2.imshow("counterfactual", d)
+                    #     cv2.waitKey(0)
+                    #     ans = input("save_img?")
+                    #     if ans == "y":
+                    #         o = o * 0.5 + 0.5
+                    #         d = d * 0.5 + 0.5
+                    #         o = cv2.cvtColor((o * 255).astype("uint8"), cv2.COLOR_RGB2GRAY)
+                    #         d = cv2.cvtColor((d * 255).astype("uint8"), cv2.COLOR_RGB2GRAY)
+                    #         plt.imsave(os.path.join(self.current_config["output_path"], f"original{i}_{b}.png"), o, cmap="gray")
+                    #         plt.imsave(os.path.join(self.current_config["output_path"], f"counterfactual{i}_{b}_{ne}.png"), d, cmap="gray")
 
-            if change[0].numel() != 0:
-                originals = wandb.Image(make_grid(x[change[0]]))
-                changes_cfs = wandb.Image(make_grid(decoded.view(decoded.shape[0] // 10, 10, 3, 32, 32)[change[0], change[1]]))
-                changes_table.add_data(i, originals, changes_cfs, self.type_of_cf["Ecc"][-1])
+            if successful_cf.sum() != 0:
+                for j, idx in enumerate(idxs):
+                # if i in causal_map[self.current_config["explainer_name"]]:
+                    originals = wandb.Image(make_grid(x[idx[0]]))
+                    orthogonal_cfs = wandb.Image(make_grid(decoded.view(decoded.shape[0] // 10, 10, 3, 32, 32)[idx[0], idx[1]]))
+                    ortho_table.add_data(i, j, originals, orthogonal_cfs, success)
+
+
+            # if trivial[0].numel() != 0:
+            #     originals = wandb.Image(make_grid(x[trivial[0]]))
+            #     trivial_cfs = wandb.Image(make_grid(decoded.view(decoded.shape[0] // 10, 10, 3, 32, 32)[trivial[0], trivial[1]]))
+            #     trivial_table.add_data(i, originals, trivial_cfs, self.type_of_cf["E_trivial"][-1])
+
+            # if change[0].numel() != 0:
+            #     originals = wandb.Image(make_grid(x[change[0]]))
+            #     changes_cfs = wandb.Image(make_grid(decoded.view(decoded.shape[0] // 10, 10, 3, 32, 32)[change[0], change[1]]))
+            #     changes_table.add_data(i, originals, changes_cfs, self.type_of_cf["Ecc"][-1])
 
                     # cv2.waitKey(0)
 
@@ -552,12 +580,14 @@ class Benchmark:
             # metrics = {"similarity": similarity, "success": success}
             self._accumulate_log(logger, metrics, x, decoded, idxs)
 
-        causal_artifact.add(causal_table, "Causal counterfactuals")
-        trivial_artifact.add(trivial_table, "Trivial counterfactuals")
-        changes_artifact.add(changes_table, "Change counterfactuals")
-        wandb.run.log_artifact(causal_artifact)
-        wandb.run.log_artifact(trivial_artifact)
-        wandb.run.log_artifact(changes_artifact)
+        # causal_artifact.add(causal_table, "Causal counterfactuals")
+        ortho_atrifact.add(ortho_table, "Orthogonal counterfactuals")
+        # trivial_artifact.add(trivial_table, "Trivial counterfactuals")
+        # changes_artifact.add(changes_table, "Change counterfactuals")
+        # wandb.run.log_artifact(causal_artifact)
+        wandb.run.log_artifact(ortho_atrifact)
+        # wandb.run.log_artifact(trivial_artifact)
+        # wandb.run.log_artifact(changes_artifact)
 
         x, y, auc = self._compute_auc(logger.metrics)
         logger.metrics["auc"] = auc

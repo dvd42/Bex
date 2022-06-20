@@ -29,8 +29,8 @@ dummy_explainer = MyExplainer()
 
 
 # corrs = [0.9, 0.95]
-corrs = [0.5, 0.95]
-clusters = [6, 10]
+corrs = [0.95, 0.5]
+clusters = [10, 6]
 
 import numpy as np
 import torch
@@ -38,10 +38,10 @@ for _ in range(1):
     for corr in corrs:
         for n_clusters in clusters:
             bn = Benchmark(dataset="synbols_font", data_path="data", corr_level=corr, n_clusters_att=n_clusters)
+            bn.run("ideal")
             # bn.run("stylex")
             # bn.run("xgem")
-            # bn.run("ideal")
-            bn.run("dive")
+            # bn.run("dive")
             # bn.run("dice")
             #XGEM
             # bn.run(explainer="dive", lr=0.1, diversity_weight=0, method="none", reconstruction_weight=0.01, lasso_weight=0)
