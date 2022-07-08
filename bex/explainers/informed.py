@@ -2,7 +2,7 @@ import torch
 import numpy as np
 from .base import ExplainerBase
 
-class IdealExplainer(ExplainerBase):
+class InformedSearch(ExplainerBase):
 
     def __init__(self, encoder, generator, dataset, num_explanations=10):
 

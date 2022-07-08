@@ -109,7 +109,7 @@ class Dive(ExplainerBase):
         predicted_labels = predicted_labels[:, None, :].repeat(1, num_explanations, 1).view(-1, logits.shape[1])
         for _ in range(self.num_iters):
             optimizer.zero_grad()
-            regularizers = []
+            regularizer = 0
 
             repeat_dim = epsilon.size(0) // mask.size(0)
             epsilon.data = epsilon.data * mask.repeat(repeat_dim, 1, 1)
@@ -122,16 +122,14 @@ class Dive(ExplainerBase):
             decoded = decoded.view(b, num_explanations, ch, h, w)
 
             if self.diversity_weight > 0:
-                regularizers.append(self.__compute_div_regularizer(epsilon))
+                regularizer += self.__compute_div_regularizer(epsilon)
 
             if self.reconstruction_weight > 0:
-                regularizers.append(self.__compute_rec_regularizer(images, decoded))
+                regularizer += self.__compute_rec_regularizer(images, decoded)
 
             if self.lasso_weight > 0:
-                regularizers.append(self.__compute_lasso_regularizer(z_perturbed, latents))
+                regularizer += self.__compute_lasso_regularizer(z_perturbed, latents)
 
-
-            regularizer = sum(regularizers)
 
             regularizer = regularizer / mask.repeat(repeat_dim, 1, 1).sum()
             loss = self.__compute_loss(logits, predicted_labels, regularizer)
@@ -153,13 +151,13 @@ class Dive(ExplainerBase):
     def __compute_lasso_regularizer(self, z_perturbed, latents):
         latents = latents[:, None, :]
         lasso_regularizer = torch.abs(z_perturbed - latents).sum()
-        return (lasso_regularizer * self.lasso_weight).item()
+        return lasso_regularizer * self.lasso_weight
 
 
     def __compute_rec_regularizer(self, images, decoded):
         reconstruction_regularizer = torch.abs(images[:, None, ...] - decoded).sum()
 
-        return (reconstruction_regularizer * self.reconstruction_weight).item()
+        return reconstruction_regularizer * self.reconstruction_weight
 
 
     def __compute_div_regularizer(self, epsilon):
@@ -172,7 +170,7 @@ class Dive(ExplainerBase):
                                                             device=div_regularizer.device))[None, ...]
         div_regularizer = (div_regularizer ** 2).sum()
 
-        return (div_regularizer * self.diversity_weight).item()
+        return div_regularizer * self.diversity_weight
 
 
     def __get_mask(self, latents):

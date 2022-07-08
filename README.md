@@ -31,6 +31,7 @@ We provide a set of counterfactuals explainers already implemented in the benchm
 4. [Explaining in Style: Training a GAN to explain a classifier in StyleSpace](https://arxiv.org/abs/2104.13369) (StylEx)
 5. [Explaining Machine Learning Classifiers through Diverse Counterfactual Explanations](https://arxiv.org/abs/1905.07697) (DiCE)
 6. [Inverse Classification for Comparison-based Interpretability in Machine Learning](https://arxiv.org/abs/1712.08443) (Growing Spheres)
+7. An oracle with access to the correlated and causal attributes (IS)
 
 
 The benchmark includes different setting by modifying the number of correlated
@@ -47,7 +48,7 @@ The benchmark includes different setting by modifying the number of correlated
 ```python
 import bex
 bn = bex.Benchmark(n_corr=6, corr_level=0.95) # downloads necessary files
-bn.run("stylex") # or any of: "dive", "xgem", "lcf", "dice", "gs"
+bn.run("stylex") # or any of: "dive", "xgem", "lcf", "dice", "gs", "IS" (Oracle)
 print(bn.summarize()) # get the explainer's performance
 ```
 
@@ -71,7 +72,7 @@ class DummyExplainer(bex.explainers.ExplainerBase):
                       images: torch.Tensor, classifier: torch.nn.Module, 
                       generator: Callable[[torch.Tensor], torch.Tensor]) -> torch.Tensor:
 
-        b, c = latents.shape
+        b, c = latents.size()
         # we will produce self.num_explanations counterfactuals per sample
         z = latents[:, None, :].repeat(1, self.num_explanations, 1)
         z_perturbed = z + random.random() # create counterfactuals z'
