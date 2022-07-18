@@ -134,6 +134,7 @@ class Benchmark:
         log_images = self.current_config["log_images"]
         explainer = get_explainer(explainer, self.encoder, self.generator, self.val_loader, **kwargs)
         explainer.data_path = self.data_path
+        explainer.generator = self.generator
         self._prepare_cache(explainer)
         att = {k: v for k, v in explainer.__dict__.items() if isinstance(v, (str, int, float))}
         if "cache" in att:
@@ -339,10 +340,8 @@ class Benchmark:
     @torch.no_grad()
     def _compute_metrics(self, z, z_perturbed, successful_cf, explainer):
 
-        changes = {"min": 0, "max": 0, "mean": 0, "std": 0}
-
         if successful_cf.sum() == 0:
-            return 0, 0, None, changes
+            return 0, None
 
         b, ne, c = z_perturbed.size()
         z = z[:, None, :].repeat(1, ne, 1).view(b, ne, -1).detach()
@@ -353,13 +352,6 @@ class Benchmark:
 
         z_perturbed = z_perturbed.view_as(z).detach()
 
-        diff = (z_perturbed - z).abs()
-        changes["min"] = diff.min().item()
-        changes["max"] = diff.max().item()
-        changes["mean"] = diff.mean().item()
-        changes["std"] = diff.std().item()
-
-        similarity = []
         success = []
         idxs = []
         for i, samples in enumerate(successful_cf):
@@ -406,12 +398,10 @@ class Benchmark:
             # cv2.destroyAllWindows()
 
             success.append(ortho_set.size(0))
-            s = norm[norm_sort][idx].mean()
-            similarity.append(1 / (1 + s).item())
             idxs.append((i, samples.nonzero().view(-1)[norm_sort[idx]]))
 
 
-        return np.mean(similarity), np.mean(success), idxs, changes
+        return np.mean(success), idxs
 
 
     def _cleanup(self, explainer, logger):
@@ -436,18 +426,6 @@ class Benchmark:
             to_log["samples"] = to_log["samples"].view(len(idxs), c, h, w)
 
         logger.accumulate(metrics, to_log)
-
-
-    def _compute_auc(self, metrics):
-
-        x = np.linspace(0, 1, 100)
-        success = np.array(metrics["success"])
-        similarity = np.array(metrics["similarity"])
-        y = [success[similarity < thr].mean() for thr in x]
-
-        y = np.nan_to_num(y)
-
-        return x, y, auc(x, y)
 
 
     def _build_histogram(self, z_perturbed, latents, successful_cf):
@@ -481,17 +459,14 @@ class Benchmark:
         self._select_data_subset(explainer)
         print(f"Running explainer: {self.current_config['explainer_name']}")
 
-        changes = {"min": [], "max": [], "mean": [], "std": []}
         self._diff_histogram = {"font_perturbation": [], "char_perturbation": [], "translation-x_perturbation": [], "translation-y_perturbation": [],
                                 "inverse_color_perturbation": [], "scale_perturbation": [], "rotation_perturbation": []}
         self.type_of_cf = {"Ecc": [], "E_causal": [], "E_trivial": []}
 
         # causal_artifact = wandb.Artifact(f"Causal_5_{self.current_config['explainer_name']}_{self.corr_level}_{self.n_clusters_att}", type="Causal Counterfactuals_5")
-        ortho_atrifact = wandb.Artifact(f"Ortho_5_{self.current_config['explainer_name']}_{self.corr_level}_{self.n_clusters_att}", type="Orthogonal Counterfactuals_5")
         # trivial_artifact = wandb.Artifact(f"Trivial_5_{self.current_config['explainer_name']}_{self.corr_level}_{self.n_clusters_att}", type="Trivial Counterfactuals_5")
         # changes_artifact = wandb.Artifact(f"Change_5_{self.current_config['explainer_name']}_{self.corr_level}_{self.n_clusters_att}", type="Change Counterfactuals_5")
         # causal_table = wandb.Table(columns=["ID", "Original", "Counterfactuals", "E_causal"])
-        ortho_table = wandb.Table(columns=["ID", "idx", "Original", "Counterfactuals", "E_orthogonal"])
         # trivial_table = wandb.Table(columns=["ID", "Original", "Counterfactuals", "E_Trivial"])
         # changes_table = wandb.Table(columns=["ID", "Original", "Counterfactuals", "E_cc"])
         for i, batch in enumerate(tqdm(self.val_loader)):
@@ -501,12 +476,12 @@ class Benchmark:
             assert torch.allclose(continuous_att.cpu(), latents[:, -5:].cpu() * explainer.latent_std[-5:] + explainer.latent_mean[-5:])
 
             generator = self._get_generator_callable(explainer)
-            with torch.no_grad():
-                latents = self.encoder(categorical_att, continuous_att)
-                latents = (latents - explainer.latent_mean.cuda()) / explainer.latent_std.cuda()
-                logits2 = self.classifier.model(generator(latents))
+            # with torch.no_grad():
+            #     latents = self.encoder(categorical_att, continuous_att)
+            #     latents = (latents - explainer.latent_mean.cuda()) / explainer.latent_std.cuda()
+            #     logits2 = self.classifier.model(generator(latents))
 
-            assert torch.all(logits2.argmax(1) == logits.argmax(1))
+            # assert torch.all(logits2.argmax(1) == logits.argmax(1))
             z_perturbed = explainer.explain_batch(latents, logits, x, self.classifier.model, generator)
             z_perturbed = z_perturbed.detach()
 
@@ -520,15 +495,15 @@ class Benchmark:
             successful_cf, causal, trivial, change = self._get_successful_cf(z_perturbed, latents, logits_perturbed, logits, explainer)
             if successful_cf.sum() != 0:
                 self._build_histogram(z_perturbed, latents, successful_cf)
-            similarity, success, idxs, extra = self._compute_metrics(latents, z_perturbed, successful_cf, explainer)
+            success, idxs = self._compute_metrics(latents, z_perturbed, successful_cf, explainer)
 
             from torchvision.utils import make_grid
             import matplotlib.pyplot as plt
             import cv2
 
-            causal_map = {"dive": [2, 5, 31, 36, 32], "stylex": [2, 9, 17, 33, 32, 34, 46, 51, 57],
-                          "xgem": [9, 2, 25, 26, 32, 33, 51, 50, 61, 62],
-                          "dice": [0, 1, 4, 8, 11, 14, 18, 35, 49, 46, 44, 52, 60, 61]}
+            # causal_map = {"dive": [2, 5, 31, 36, 32], "stylex": [2, 9, 17, 33, 32, 34, 46, 51, 57],
+            #               "xgem": [9, 2, 25, 26, 32, 33, 51, 50, 61, 62],
+            #               "dice": [0, 1, 4, 8, 11, 14, 18, 35, 49, 46, 44, 52, 60, 61]}
 
             # if causal[0].numel() != 0:
             #     # if i in causal_map[self.current_config["explainer_name"]]:
@@ -552,12 +527,12 @@ class Benchmark:
                     #         plt.imsave(os.path.join(self.current_config["output_path"], f"original{i}_{b}.png"), o, cmap="gray")
                     #         plt.imsave(os.path.join(self.current_config["output_path"], f"counterfactual{i}_{b}_{ne}.png"), d, cmap="gray")
 
-            if successful_cf.sum() != 0:
-                for j, idx in enumerate(idxs):
-                # if i in causal_map[self.current_config["explainer_name"]]:
-                    originals = wandb.Image(make_grid(x[idx[0]]))
-                    orthogonal_cfs = wandb.Image(make_grid(decoded.view(decoded.shape[0] // 10, 10, 3, 32, 32)[idx[0], idx[1]]))
-                    ortho_table.add_data(i, j, originals, orthogonal_cfs, success)
+            # if successful_cf.sum() != 0:
+            #     for j, idx in enumerate(idxs):
+            #     # if i in causal_map[self.current_config["explainer_name"]]:
+            #         originals = wandb.Image(make_grid(x[idx[0]]))
+            #         orthogonal_cfs = wandb.Image(make_grid(decoded.view(decoded.shape[0] // 10, 10, 3, 32, 32)[idx[0], idx[1]]))
+            #         ortho_table.add_data(i, j, originals, orthogonal_cfs, success)
 
 
             # if trivial[0].numel() != 0:
@@ -572,29 +547,17 @@ class Benchmark:
 
                     # cv2.waitKey(0)
 
-
-            for k, v in extra.items():
-                changes[k].append(v)
-
-            metrics = {"similarity": similarity, "success": success}
+            metrics = {"success": success}
             # metrics = {"similarity": similarity, "success": success}
             self._accumulate_log(logger, metrics, x, decoded, idxs)
 
         # causal_artifact.add(causal_table, "Causal counterfactuals")
-        ortho_atrifact.add(ortho_table, "Orthogonal counterfactuals")
         # trivial_artifact.add(trivial_table, "Trivial counterfactuals")
         # changes_artifact.add(changes_table, "Change counterfactuals")
         # wandb.run.log_artifact(causal_artifact)
-        wandb.run.log_artifact(ortho_atrifact)
         # wandb.run.log_artifact(trivial_artifact)
         # wandb.run.log_artifact(changes_artifact)
 
-        x, y, auc = self._compute_auc(logger.metrics)
-        logger.metrics["auc"] = auc
-        logger.metrics["auc_x"] = x
-        logger.metrics["auc_y"] = y
-
-        logger.metrics.update(changes)
         logger.metrics.update({k: np.mean(v) for k, v in self._diff_histogram.items()})
         logger.metrics.update({k: np.mean(v) for k, v in self.type_of_cf.items()})
 

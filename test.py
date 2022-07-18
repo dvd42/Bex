@@ -34,21 +34,22 @@ clusters = [10, 6]
 
 import numpy as np
 import torch
-for _ in range(1):
-    for corr in corrs:
-        for n_clusters in clusters:
-            bn = Benchmark(dataset="synbols_font", data_path="data", corr_level=corr, n_clusters_att=n_clusters)
-            bn.run("ideal")
+# for _ in range(1):
+#     for corr in corrs:
+#         for n_clusters in clusters:
+#             bn = Benchmark(dataset="synbols_font", data_path="data", corr_level=corr, n_clusters_att=n_clusters)
+            # bn.run("ideal")
             # bn.run("stylex")
             # bn.run("xgem")
-            # bn.run("dive")
+            # bn.run("dive", sparsity_weight=0.)
             # bn.run("dice")
             #XGEM
             # bn.run(explainer="dive", lr=0.1, diversity_weight=0, method="none", reconstruction_weight=0.01, lasso_weight=0)
             # bn.run("lcf")
             # bn.run("gs")
-# bn = Benchmark(dataset="synbols_font", data_path="explainability_benchmark/data", corr_level=0.95, n_clusters_att=10)
-# bn.run(explainer="dive", lr=0.1, diversity_weight=0, method="none", reconstruction_weight=0.01, lasso_weight=0)
+bn = Benchmark(dataset="synbols_font", data_path="data", corr_level=0.95, n_clusters_att=10)
+bn.runs(EXP_GROUPS["random_search"], log_img_thr=1.)
+# bn.run(explainer="dive", sparsity_weight=0, beta=0.2, lasso_weight=10, reconstruction_weight=10, diversity_weight=10)
 # bn.run("stylex")
 # bn.run("dice")
 # bn.run("lcf")
@@ -56,7 +57,7 @@ for _ in range(1):
 # bn.run(explainer="ideal")
 #bn.run(explainer="stylex", output_path="images/stylex", logger=BasicLogger)
 # bn.run(explainer="dive", lr=0.1, method="fisher_spectral_inv", lasso_weight=0.001, reconstruction_weight=0.0001, diversity_weight=0)
-# bn.run(explainer="dive", lr=1)
+# bn.run(explainer="dive", diversity_weight=0.001, lasso_weight=0.1, reconstruction_weight=0.0001)
         # bn.run(explainer="gs")
         # bn.run(explainer="dive")
 # bn.run(explainer="dice", lr=0.1, diversity_weight=1, proximity_weight=1)

@@ -9,7 +9,7 @@ class Dive(ExplainerBase):
     """Main class to generate counterfactuals"""
 
     def __init__(self, num_explanations=10,
-                 diversity_weight=0, lr=0.1, lasso_weight=0.1, reconstruction_weight=0.001, max_iters=50,
+                 diversity_weight=0, lr=0.1, lasso_weight=0.1, reconstruction_weight=0.001, max_iters=50, sparsity_weight=0., beta=0.1,
                  method="fisher_spectral"):
 
         """Constructor
@@ -23,7 +23,9 @@ class Dive(ExplainerBase):
         self.diversity_weight = diversity_weight
         self.lasso_weight = lasso_weight
         self.reconstruction_weight = reconstruction_weight
+        self.sparsity_weight = sparsity_weight
         self.max_iters = max_iters
+        self.beta = beta
         self.num_explanations = num_explanations
         self.method = method
         self.cache = False
@@ -116,7 +118,7 @@ class Dive(ExplainerBase):
         predicted_labels = predicted_labels[:, None, :].repeat(1, num_explanations, 1).view(-1, logits.shape[1])
         for _ in range(self.max_iters):
             optimizer.zero_grad()
-            regularizers = []
+            regularizer = 0
 
             repeat_dim = epsilon.size(0) // mask.size(0)
             epsilon.data = epsilon.data * mask.repeat(repeat_dim, 1, 1)
@@ -129,16 +131,17 @@ class Dive(ExplainerBase):
             decoded = decoded.view(b, num_explanations, ch, h, w)
 
             if self.diversity_weight > 0:
-                regularizers.append(self.compute_div_regularizer(epsilon))
+                regularizer += self.compute_div_regularizer(epsilon)
 
             if self.reconstruction_weight > 0:
-                regularizers.append(self.compute_rec_regularizer(images, decoded))
+                regularizer += self.compute_rec_regularizer(images, decoded)
 
             if self.lasso_weight > 0:
-                regularizers.append(self.compute_lasso_regularizer(z_perturbed, latents))
+                regularizer += self.compute_lasso_regularizer(z_perturbed, latents)
 
+            if self.sparsity_weight > 0:
+                regularizer += self.compute_sparsity_regularizer(z_perturbed, latents)
 
-            regularizer = sum(regularizers)
 
             regularizer = regularizer / mask.repeat(repeat_dim, 1, 1).sum()
             loss = self.compute_loss(logits, predicted_labels, regularizer)
@@ -156,17 +159,40 @@ class Dive(ExplainerBase):
 
         return loss
 
+    
+    def compute_sparsity_regularizer(self, z_perturbed, latents):
+
+        b, ne, c = z_perturbed.size()
+        latents = latents[:, None, :].repeat(1, ne, 1)
+        z_perturbed = self._cosine_embedding(z_perturbed).view(b * ne, -1)
+        perturbations = z_perturbed.clone()
+        latents = self._cosine_embedding(latents, binarize=True).view(b * ne, -1)
+        perturbations[:, -5:] = (latents[:, -5:] - perturbations[:, -5:]).abs()
+        perturbations[:, :-5] = (perturbations[:, :-5] * (1 - latents[:, :-5])).abs()
+
+        p_beta = torch.distributions.exponential.Exponential(rate=1/self.beta).rsample((perturbations.size())).cuda()
+        beta_hat = perturbations / perturbations.shape[0] + 1e-6
+        
+        regularizer = torch.where(beta_hat > p_beta, 1/beta_hat - p_beta/beta_hat**2, torch.zeros_like(beta_hat))
+        beta_hat = latents / latents.shape[0] + 1e-6
+        regularizer2 = torch.where(beta_hat > p_beta, 1/beta_hat - p_beta/beta_hat**2, torch.zeros_like(beta_hat))
+        print("real", (regularizer.mean() * self.sparsity_weight).item())
+        print("ideal", (regularizer2.mean() * self.sparsity_weight).item())
+
+        # skl = torch.where(p_beta > self.beta, (p_beta.log() + perturbations/p_beta - perturbations.log() - 1.), torch.zeros_like(p_beta))
+        return regularizer.mean() * self.sparsity_weight
+
 
     def compute_lasso_regularizer(self, z_perturbed, latents):
         latents = latents[:, None, :]
         lasso_regularizer = torch.abs(z_perturbed - latents).sum()
-        return (lasso_regularizer * self.lasso_weight).item()
+        return lasso_regularizer * self.lasso_weight
 
 
     def compute_rec_regularizer(self, images, decoded):
         reconstruction_regularizer = torch.abs(images[:, None, ...] - decoded).sum()
 
-        return (reconstruction_regularizer * self.reconstruction_weight).item()
+        return reconstruction_regularizer * self.reconstruction_weight
 
 
     def compute_div_regularizer(self, epsilon):
@@ -179,7 +205,7 @@ class Dive(ExplainerBase):
                                                             device=div_regularizer.device))[None, ...]
         div_regularizer = (div_regularizer ** 2).sum()
 
-        return (div_regularizer * self.diversity_weight).item()
+        return div_regularizer * self.diversity_weight
 
 
     def get_mask(self, latents):
@@ -243,3 +269,32 @@ class Dive(ExplainerBase):
                               device=latents.device, dtype=latents.dtype)
 
         return mask
+
+    def _cosine_embedding(self, z, binarize=False):
+
+        b, ne, c = z.size()
+        z = z.view(-1, c)
+        weights_char = self.generator.model.char_embedding.weight.clone()
+        weights_font = self.generator.model.font_embedding.weight.clone()
+        weights_char = (weights_char - self.latent_mean[:3].cuda()) / self.latent_std[:3].cuda()
+        weights_font = (weights_font - self.latent_mean[3:6].cuda()) / self.latent_std[3:6].cuda()
+        # first 3 are the embedding of char class
+        # the next 3 font embedding
+        z_char = z[:, None, :3]
+        z_font = z[:, None, 3:6]
+        char = torch.softmax((torch.linalg.norm(weights_char[None, ...] - z_char, 2, dim=-1) * -3), dim=-1)
+        font = torch.softmax((torch.linalg.norm(weights_font[None, ...] - z_font, 2, dim=-1) * -3), dim=-1)
+        # char = char / self._tau
+        # font = font / self._tau
+
+        if binarize:
+            char_max = char.argmax(-1)
+            font_max = font.argmax(-1)
+            char = torch.zeros(b * ne, 48).cuda()
+            char[torch.arange(b * ne), char_max] = 1
+            font = torch.zeros(b * ne, 48).cuda()
+            font[torch.arange(b* ne), font_max] = 1
+
+        z = torch.cat((char, font, z[:, -5:]), 1)
+
+        return z.view(b, ne, -1)

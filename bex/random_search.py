@@ -4,7 +4,7 @@ import numpy as np
 dive = {
         "explainer": "dive",
         "lr": 0.01,
-        "max_iters": 20,
+        "max_iters": 50,
         "method": "dive",
         "reconstruction_weight": 1,
         "lasso_weight": 1.,
@@ -12,13 +12,10 @@ dive = {
        }
 
 xgem = {
-        "explainer": "dive",
+        "explainer": "xgem",
         "lr": 0.01,
-        "max_iters": 20,
-        "method": "none",
+        "max_iters": 50,
         "reconstruction_weight": 1,
-        "lasso_weight": 0.,
-        "diversity_weight": 0,
        }
 
 dice = {
@@ -66,7 +63,7 @@ for run in range(n_trials):
     base_exp['diversity_weight'] = float(np.random.choice(diversity_space))
     base_exp['lasso_weight'] = float(np.random.choice(lasso_space))
     base_exp['reconstruction_weight'] = float(np.random.choice(reconstruction_space))
-    methods = ["fisher_spectral_inv"]
+    methods = ["fisher_spectral"]
     for method in methods:
         method_exp = deepcopy(base_exp)
         method_exp['method'] = method
@@ -135,6 +132,7 @@ for run in range(n_trials):
 random_search = xgem
 n_trials = 40
 
+exps = []
 base_exp = deepcopy(random_search)
 for run in range(n_trials):
     base_exp['lr'] = float(np.random.choice(lr_space))

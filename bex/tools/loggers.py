@@ -106,8 +106,8 @@ class WandbLogger(BasicLogger):
 
         super().__init__(attributes, path, log_images, n_batches)
 
-        wandb.init(project="Synbols-benchmark", dir=self.path, config=self.attributes, reinit=True,
-                   tags=["tables"])
+        wandb.init(project="Synbols-Benchmark", dir=self.path, config=self.attributes, reinit=True,
+                   tags=["dive"])
 
 
     def accumulate(self, data, images):
@@ -119,18 +119,8 @@ class WandbLogger(BasicLogger):
 
     def log(self):
 
-        mins = self.metrics.pop("min")
-        maxs = self.metrics.pop("max")
-        means = self.metrics.pop("mean")
-        stds = self.metrics.pop("std")
-
-        ret = {f"{k}_avg": np.mean(v) for k, v in self.metrics.items() if "auc" not in k}
+        ret = {f"{k}_avg": np.mean(v) for k, v in self.metrics.items() }
         wandb.log(ret)
-        wandb.log({"AUC": self.metrics["auc"]})
-        data = [[x, y] for (x, y) in zip(self.metrics["auc_x"], self.metrics["auc_y"])]
-        table = wandb.Table(data=data, columns=["similarity", "success"])
-        wandb.log({"AUC_curve" : wandb.plot.line(table, "similarity", "success")})
-        wandb.log({"min": min(mins), "max": max(maxs), "mean": np.mean(np.array(means)), "std": np.mean(np.array(stds))})
 
         if self.log_images:
             self._prepare_images_to_log()
