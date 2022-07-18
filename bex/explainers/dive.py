@@ -21,7 +21,7 @@ class Dive(ExplainerBase):
     """
 
     def __init__(self, num_explanations=10, lr=0.1, num_iters=50,
-                 diversity_weight=0, lasso_weight=0.1, reconstruction_weight=0.001,
+                 diversity_weight=0.001, lasso_weight=0.1, reconstruction_weight=0.0001,
                  method="fisher_spectral"):
 
 

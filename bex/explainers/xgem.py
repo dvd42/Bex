@@ -13,7 +13,7 @@ class Xgem(Dive):
         reconstruction_weight (``float``, optional): weight of the reconstruction term in the loss function (default: 0.01)
     """
 
-    def __init__(self, num_explanations=10, lr=0.1, num_iters=50, reconstruction_weight=0.01):
+    def __init__(self, num_explanations=10, lr=0.1, num_iters=50, reconstruction_weight=0.001):
 
         super().__init__()
 
