@@ -48,7 +48,7 @@ The benchmark includes different setting by modifying the number of correlated
 ```python
 import bex
 bn = bex.Benchmark(n_corr=6, corr_level=0.95) # downloads necessary files
-bn.run("stylex") # or any of: "dive", "xgem", "lcf", "dice", "gs", "IS" (Oracle)
+bn.run("stylex", output="output") # or any of: "dive", "xgem", "lcf", "dice", "gs", "IS" (Oracle)
 print(bn.summarize()) # get the explainer's performance
 ```
 

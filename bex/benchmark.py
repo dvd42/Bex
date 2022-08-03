@@ -153,8 +153,8 @@ class Benchmark:
             clipped = latents.clone()
             # clip attributes
             for i in range(latents.shape[-1]):
-                lower = explainer.mus_min[i]
-                upper = explainer.mus_max[i]
+                lower = explainer.mus_min[i].to(latents.device)
+                upper = explainer.mus_max[i].to(latents.device)
                 clipped[..., i] = torch.clamp(latents[..., i], min=lower, max=upper)
 
             clipped = clipped * explainer.latent_std.cuda() + explainer.latent_mean.cuda()
