@@ -226,8 +226,8 @@ class Benchmark:
         E_agree = (classifier == oracle) & (perturbed_classifier == perturbed_oracle)
         successful_cf = (E_cc | E_causal_change) & ~E_agree
 
-        ncfs = successful_cf.sum() if successful_cf.sum() !=0 else 1
-        if successful_cf.sum() != 0:
+        ncfs = successful_cf.sum()
+        if ncfs != 0:
             Esc = successful_cf.float().mean().item()
             Ecc = ((E_cc & ~E_agree).sum() / ncfs).item()
             E_causal = ((E_causal_change & ~E_agree).sum() / ncfs).item()
