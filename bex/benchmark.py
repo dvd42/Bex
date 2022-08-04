@@ -331,7 +331,7 @@ class Benchmark:
 
     def _accumulate_log(self, logger, metrics, x, decoded, idxs):
 
-        skip = metrics["E_orthogonal"] == 0
+        skip = metrics["Cardinality"] == 0
         to_log = []
         if not skip:
             b, c, h, w = x.size()
@@ -391,7 +391,7 @@ class Benchmark:
         print(f"Running explainer: {self.current_config['explainer_name']}")
 
         if logger is None:
-            metrics = {"E_orthogonal": [], "Esc": [], "Ecc": [], "E_causal": [], "E_trivial": []}
+            metrics = {"Cardinality": [], "Esc": [], "Ecc": [], "E_causal": [], "E_trivial": []}
 
         for batch in tqdm(self.val_loader):
 
@@ -413,10 +413,10 @@ class Benchmark:
 
 
             if logger is not None:
-                metrics = {"E_orthogonal": success, "Esc": Esc, "Ecc": Ecc, "E_causal": E_causal, "E_trivial": E_trivial}
+                metrics = {"Cardinality": success, "Esc": Esc, "Ecc": Ecc, "E_causal": E_causal, "E_trivial": E_trivial}
                 self._accumulate_log(logger, metrics, x, decoded, idxs)
             else:
-                metrics["E_orthogonal"].append(success)
+                metrics["Cardinality"].append(success)
                 metrics["Esc"].append(Esc)
                 metrics["Ecc"].append(Ecc)
                 metrics["E_causal"].append(E_causal)
