@@ -113,7 +113,6 @@ class Dive(ExplainerBase):
 
             repeat_dim = epsilon.size(0) // mask.size(0)
             epsilon.data = epsilon.data * mask.repeat(repeat_dim, 1, 1)
-            # epsilon.data = epsilon.data * mask
             z_perturbed = latents[:, None, :].detach() + epsilon
 
             decoded = generator(z_perturbed.view(b * num_explanations, c))
