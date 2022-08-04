@@ -8,11 +8,11 @@ from haven import haven_utils as hu
 from haven import haven_results as hr
 from haven import haven_chk as hc
 
-from explainability_benchmark.datasets import get_dataset
+from WhyY.datasets import get_dataset
 from torch.utils.data import DataLoader
 import torchvision.transforms as tt
-from explainability_benchmark.models.configs import default_configs
-from explainability_benchmark.models import get_model
+from WhyY.models.configs import default_configs
+from WhyY.models import get_model
 import pandas as pd
 import pprint
 import torch

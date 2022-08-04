@@ -8,9 +8,9 @@ from haven import haven_utils as hu
 from torch.utils.data import DataLoader
 from sklearn.cluster import KMeans
 import numpy as np
-from explainability_benchmark.datasets import get_dataset
-from explainability_benchmark.models.configs import default_configs
-from explainability_benchmark.models import get_model
+from WhyY.datasets import get_dataset
+from WhyY.models.configs import default_configs
+from WhyY.models import get_model
 import argparse
 
 
@@ -46,11 +46,6 @@ def correlation_font(categorical_att, args, kmeans, weights):
     centers = torch.from_numpy(kmeans.cluster_centers_)
     corr_fonts = torch.linalg.norm(centers[:, None, :] - torch.from_numpy(weights)[None, ...], ord=2, dim=-1).argmin(-1)
 
-    # f1 = ind[clusters == 0]
-    # f2 = ind[clusters == 1]
-    # f1 = [1]
-    # f2 = [100]
-    # n_corr_fonts = int(n_fonts * args.p_corr)
     n_corr_fonts = int(centers.shape[0] // 2)
     f1 = corr_fonts[:n_corr_fonts]
     f2 = corr_fonts[n_corr_fonts:]
@@ -58,7 +53,7 @@ def correlation_font(categorical_att, args, kmeans, weights):
     flip = torch.rand(b)
 
     # 5% noise
-    y = torch.where(torch.rand(b) < 0.0, ~_y, _y)
+    y = torch.where(torch.rand(b) < 0.05, ~_y, _y)
     mask = flip < args.corr_level
     y_1 = (y == 0) & (mask)
     y_2 = (y == 1) & (mask)
@@ -202,21 +197,21 @@ def generate_dataset(data_root, exp_dict, args):
                                 shuffle=False,
                             num_workers=4)
 
-    font_2_char = {}
-    font_2_img = {}
-    import matplotlib
-    matplotlib.use("TkAgg")
-    import matplotlib.pyplot as plt
-    for i, x in enumerate(train_dataset.x):
-        font = train_dataset.raw_labels[i]["font"]
-        char = train_dataset.raw_labels[i]["char"]
-        if font not in font_2_char:
-            font_2_char[font] = []
-            font_2_img[font] = []
-        if char not in font_2_char[font]:
-            font_2_char[font].append(char)
+    # font_2_char = {}
+    # font_2_img = {}
+    # import matplotlib
+    # matplotlib.use("TkAgg")
+    # import matplotlib.pyplot as plt
+    # for i, x in enumerate(train_dataset.x):
+    #     font = train_dataset.raw_labels[i]["font"]
+    #     char = train_dataset.raw_labels[i]["char"]
+    #     if font not in font_2_char:
+    #         font_2_char[font] = []
+    #         font_2_img[font] = []
+    #     if char not in font_2_char[font]:
+    #         font_2_char[font].append(char)
 
-            font_2_img[font].append(x)
+    #         font_2_img[font].append(x)
             # if len(char_2_font[char]) >= 48:
             #     break
         # print(val_dataset.raw_labels[i])
@@ -224,23 +219,24 @@ def generate_dataset(data_root, exp_dict, args):
         # plt.imshow(x)
         # plt.show()
 
-    for font in font_2_img.keys():
-        idxs = np.argsort(font_2_char[font])
-        font_2_img[font] = np.stack(font_2_img[font])[idxs].tolist()
-    from torchvision.utils import make_grid
-    f, axis = plt.subplots(6, 8)
-    f.set_size_inches(15.5, 15.5)
-    for ax, font in zip(axis.ravel(), sorted(font_2_img.keys())):
-        images = torch.from_numpy(np.stack(font_2_img[font])).permute(0, 3, 1, 2)
-        ax.imshow(make_grid(images).permute(1, 2, 0))
-        ax.axis('off')
-        ax.set_title(font)
-        ax.axis('off')
+    # for font in font_2_img.keys():
+    #     idxs = np.argsort(font_2_char[font])
+    #     font_2_img[font] = np.stack(font_2_img[font])[idxs].tolist()
+    # from torchvision.utils import make_grid
+    # f, axis = plt.subplots(6, 8)
+    # f.set_size_inches(15.5, 15.5)
+    # for ax, font in zip(axis.ravel(), sorted(font_2_img.keys())):
+    #     images = torch.from_numpy(np.stack(font_2_img[font])).permute(0, 3, 1, 2)
+    #     ax.imshow(make_grid(images).permute(1, 2, 0))
+    #     ax.axis('off')
+    #     ax.set_title(font)
+    #     ax.axis('off')
 
-    plt.show()
+    # plt.show()
     model = get_model("generator", data_root)
     if args.att == "font":
-        path = os.path.join(data_root, f"datasets_0/dataset_{args.att}_corr{args.corr_level}_n_clusters{args.n_clusters}.h5py")
+        path = os.path.join(data_root, f"datasets/dataset_{args.att}_corr{args.corr_level}_n_clusters{args.n_clusters}.h5py")
+        print(path)
     else:
         path = os.path.join(data_root, f"datasets/dataset_{args.att}_scale.h5py")
     create_dataset(model, train_loader, val_loader, path, args)
@@ -250,4 +246,4 @@ if __name__ == "__main__":
 
     args = parse_args()
     exp_dict = default_configs["generator"]
-    generate_dataset("explainability_benchmark/data", exp_dict, args)
+    generate_dataset("data", exp_dict, args)

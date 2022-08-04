@@ -15,7 +15,8 @@ def get_model(model, path):
     configs = copy.deepcopy(default_configs)
 
     # configs["encoder"]["weights"] = get_data_path_or_download(configs["encoder"]["weights"], path)
-    configs[model]["weights"] = get_data_path_or_download(configs[model]["weights"], path)
+    if configs[model]["weights"] is not None:
+        configs[model]["weights"] = get_data_path_or_download(configs[model]["weights"], path)
 
     # if default_configs[model]["weights"] is not None:
     #     configs[model]["weights"] = os.path.join(path, configs[model]["weights"])

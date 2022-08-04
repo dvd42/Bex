@@ -8,7 +8,7 @@ solid = {
     "width": 32,
     "height": 32,
     "channels": 3,
-    "name": "datasets/non-camou-bw_n=100000_2022-May-31.h5py",
+    "name": "non-camou-bw_n=100000_2022-May-31.h5py",
     "task": "char",
     "augmentation": False,
     "mask": "random",
