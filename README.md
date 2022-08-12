@@ -86,7 +86,7 @@ print(bn.summarize()) # get the explainer's performance
 
 ### Logging
 
-We provide a basic logger to log results and image samples it is activated by default, you can deactivate by setting it to `None`:
+We provide a basic logger to log results and image samples; it is activated by default, you can deactivate it by setting it to `None`:
 
 ```python
 bn = bex.Benchmark(n_corr=6, corr_level=0.95, logger=None)
