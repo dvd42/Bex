@@ -91,7 +91,7 @@ We provide a basic logger to log results and image samples it is activated by de
 bn = bex.Benchmark(n_corr=6, corr_level=0.95, logger=None)
 bn.run("stylex") # nothing will be logged 
 
-# a pandas dataframe holding the results can always be obtained by calling 
+# a pandas dataframe holding the results of all .run() calls can always be obtained by calling 
 bn.summarize()
 ```
 
