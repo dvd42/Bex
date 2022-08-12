@@ -48,7 +48,7 @@ The benchmark includes different setting by modifying the number of correlated
 ```python
 import bex
 bn = bex.Benchmark(n_corr=6, corr_level=0.95) # downloads necessary files
-bn.run("stylex", output_path="output") # or any of: "dive", "xgem", "lcf", "dice", "gs", "IS" (Oracle)
+bn.run("stylex") # or any of: "dive", "xgem", "lcf", "dice", "gs", "IS" (Oracle)
 bn.run("IS", output_path="output/is")
 print(bn.summarize()) # get the performance of each explainer as a pandas dataframe
 ```
@@ -105,7 +105,7 @@ class WandbLogger(BasicLogger):
 
     '''
     Args:
-        attributes (``Dict``): dictionary containing the run config (provided internally)
+        attributes (``Dict``): dictionary containing the run config
         path: (``string``): output path for the logger 
         n_batches: (``int``, optional): max number of image batches to log
 

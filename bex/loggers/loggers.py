@@ -20,7 +20,7 @@ class BasicLogger:
     base class for custom loggers but it is fully functional.
 
     Args:
-        attributes (``Dict``): dictionary containing the run config (provided internally)
+        attributes (``Dict``): dictionary containing the run config
         path: (``string``): output path for the logger (see :py:meth:`run() <Bex.Benchmark.run>`)
         n_batches: (``int``, optional): max number of image batches to log
 
