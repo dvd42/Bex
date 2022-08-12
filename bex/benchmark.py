@@ -325,11 +325,9 @@ class Benchmark:
         return np.mean(success), idxs
 
 
-    def _cleanup(self, explainer, logger):
+    def _cleanup(self, explainer):
 
         explainer._cleanup()
-        if logger is not None:
-            logger._cleanup()
         self.current_config = {}
 
 
@@ -433,7 +431,7 @@ class Benchmark:
             metrics = {k : np.mean(v) for k, v in metrics.items()}
             self.results.append({"explainer": self.current_config["explainer_name"], **metrics})
 
-        self._cleanup(explainer, logger)
+        self._cleanup(explainer)
 
     def summarize(self):
         """Summarize the metrics obtained by every explainer ran since :py:class:`Benchmark` was instantiated

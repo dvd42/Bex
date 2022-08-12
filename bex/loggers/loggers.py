@@ -55,10 +55,11 @@ class BasicLogger:
                     self.metrics = {f"{k}_avg": np.mean(v) for k, v in self.metrics.items()}
                     wandb.log(self.metrics)
 
-                    # create a figure with all the images and store it in self._figure
-                    self.prepare_images_to_log()
+                    # create matplotlib figure with the counterfactuals generated
+                    fig = self.create_cf_figure()
 
-                    wandb.log({"Counterfactuals": self._figure})
+                    wandb.log({"Counterfactuals": fig})
+                    plt.close()
 
             bn = Benchmark()
             bn.run("dive", logger=WandbLogger)
@@ -102,7 +103,7 @@ class BasicLogger:
                 self.images.append(images)
 
 
-    def prepare_images_to_log(self):
+    def create_cf_figure(self):
 
         """Helper function to build a figure with the accumulated images. Must be called
         before :py:meth:`log() <Bex.loggers.BasicLogger.log>`
@@ -133,7 +134,7 @@ class BasicLogger:
             ax[i, 1].set_axis_off()
             ax[i, 1].set_title("Counterfactuals", fontdict={"fontsize": "small"})
 
-        self._figure = f
+        return f
 
 
     def log(self):
@@ -147,19 +148,11 @@ class BasicLogger:
 
         self.metrics = {k: np.mean(v) for k,v in self.metrics.items()}
 
-        self.prepare_images_to_log()
-        if self._figure is not None:
-            self._figure.savefig(os.path.join(self.path, "counterfactuals.png"), bbox_inches="tight")
+        fig = self.create_cf_figure()
+        if fig is not None:
+            fig.savefig(os.path.join(self.path, "counterfactuals.png"), bbox_inches="tight")
 
 
+        plt.close()
         df = pd.DataFrame({**self.metrics, **self.attributes}, index=[0])
         df.to_csv(os.path.join(self.path, "results.csv"))
-
-
-    def _cleanup(self):
-
-        if self._figure is not None:
-            plt.close(self._figure)
-
-
-

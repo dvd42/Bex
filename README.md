@@ -118,6 +118,7 @@ class WandbLogger(BasicLogger):
         wandb.init(project="Synbols-benchmark", dir=self.path, config=self.attributes, reinit=True)
 
 
+    # accumulate metrics for this step
     def accumulate(self, data, images):
 
         super().accumulate(data, images)
@@ -125,14 +126,18 @@ class WandbLogger(BasicLogger):
         wandb.log({f"{k}" :v for k, v in data.items()}, commit=True)
 
 
+    # log average value of all the metrics across steps
     def log(self):
 
         self.metrics = {f"{k}_avg": np.mean(v) for k, v in self.metrics.items()}
         wandb.log(self.metrics)
 
-        self.prepare_images_to_log()
+        # create matplotlib figure with the counterfactuals generated
+        fig = self.create_cf_figure()
 
-        wandb.log({"Counterfactuals": self._figure})
+        wandb.log({"Counterfactuals": fig})
+        
+        plt.close()
 
 bn = bex.Benchmark(n_corr=6, corr_level=0.95, logger=WandbLogger)
 bn.run("IS") # results will be logged to weights and biases 
