@@ -50,7 +50,7 @@ import bex
 bn = bex.Benchmark(n_corr=6, corr_level=0.95) # downloads necessary files
 bn.run("stylex", output_path="output") # or any of: "dive", "xgem", "lcf", "dice", "gs", "IS" (Oracle)
 bn.run("IS", output_path="output/is")
-print(bn.summarize()) # get the performance of each explainer 
+print(bn.summarize()) # get the performance of each explainer as a pandas dataframe
 ```
 
 ### Evaluate a custom explainer
@@ -86,7 +86,7 @@ print(bn.summarize()) # get the explainer's performance
 
 ### Logging
 
-We provide a basic logger to log results and image samples it is activated by defuault, if you wish to deactivate it you can set it to `None`:
+We provide a basic logger to log results and image samples it is activated by default, you can deactivate by setting it to `None`:
 
 ```python
 bn = bex.Benchmark(n_corr=6, corr_level=0.95, logger=None)
