@@ -52,6 +52,59 @@ bn.run("stylex", output_path="output") # or any of: "dive", "xgem", "lcf", "dice
 print(bn.summarize()) # get the explainer's performance
 ```
 
+### Logging
+
+We provide a basic logger to log results and image samples it is activated by defuault, if you wish to deactivate it you can set it to `None`:
+
+```python
+bn = bex.Benchmark(n_corr=6, corr_level=0.95, logger=None)
+bn.run("stylex") # nothing will be logged 
+
+# a pandas dataframe holding the results can always be obtained by calling 
+bn.summarize()
+```
+
+It is also possible to use a custom logger. For example, here is a custom logger using weights and biases:
+
+```python
+from bex.loggers import BasicLogger
+
+class WandbLogger(BasicLogger):
+
+    Args:
+        attributes (``Dict``): dictionary containing the run config (provided internally)
+        path: (``string``): output path for the logger 
+        n_batches: (``int``, optional): max number of image batches to log
+
+    def __init__(self, attributes, path, n_batches=10):
+
+        super().__init__(attributes, path, n_batches)
+
+        wandb.init(project="Synbols-benchmark", dir=self.path, config=self.attributes, reinit=True)
+
+
+    def accumulate(self, data, images):
+
+        super().accumulate(data, images)
+
+        wandb.log({f"{k}" :v for k, v in data.items()}, commit=True)
+
+
+    def log(self):
+
+        self.metrics = {f"{k}_avg": np.mean(v) for k, v in self.metrics.items()}
+        wandb.log(self.metrics)
+
+        self.prepare_images_to_log()
+
+        wandb.log({"Counterfactuals": self._figure})
+
+bn = bex.Benchmark(n_corr=6, corr_level=0.95, logger=WandbLogger)
+bn.run("IS") # results will be logged to weights and biases 
+
+print(bn.summarize()) # results stored in memory
+```
+
 
 ### Evaluate a custom explainer
 

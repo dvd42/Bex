@@ -7,6 +7,7 @@ import torch.nn.functional as F
 from tqdm import tqdm
 
 from .models import get_model
+from .loggers import BasicLogger
 from .explainers import get_explainer
 from .datasets import get_dataset, DatasetWrapper
 from .models.configs import default_configs
@@ -26,9 +27,10 @@ class Benchmark:
         corr_level (``float``, optional): `0.50` or `0.95` correlation level of the spuriously correlated attributes :math:`z_{\\text{corr}}` (default: 0.95)
         n_corr (``int``, optional): `6` or `10` number of correlated attributes (default: 10)
         seed: (``int``, optional) numpy and torch random seed (default: 0)
+        logger (:py:class:`BasicLogger <Bex.loggers.BasicLogger>`, optional): logger to log results and examples, if `None` nothing will be logged (default: :py:class:`<Bex.loggers.BasicLogger>`)
     """
 
-    def __init__(self, batch_size=12, num_workers=2, n_samples=800, corr_level=0.95, n_corr=10, seed=0):
+    def __init__(self, batch_size=12, num_workers=2, n_samples=800, corr_level=0.95, n_corr=10, seed=0, logger=BasicLogger):
 
         self.data_path = os.path.join(os.path.expanduser("~"), ".bex")
         self.batch_size = batch_size
@@ -39,6 +41,7 @@ class Benchmark:
         self.n_corr = n_corr
         self.seed = seed
         self._tau = 0.15
+        self.logger = logger
 
         self.classifier_name = "resnet"
         self.results = []
@@ -71,7 +74,7 @@ class Benchmark:
         self.current_config["output_path"] = output_path
 
 
-    def _setup(self, explainer, logger, **kwargs):
+    def _setup(self, explainer, **kwargs):
 
         np.random.seed(self.seed)
         torch.manual_seed(self.seed)
@@ -92,8 +95,9 @@ class Benchmark:
                       "num_samples": self.n_samples, **att
                      }
 
-        if logger is not None:
-            logger = logger(run_config, output_path)
+        logger = None
+        if self.logger is not None:
+            logger = self.logger(run_config, output_path)
 
         return explainer, logger
 
@@ -228,17 +232,17 @@ class Benchmark:
 
         ncfs = successful_cf.sum() if successful_cf.sum() !=0 else 1
         if successful_cf.sum() != 0:
-            Esc = successful_cf.float().mean().item()
-            Ecc = ((E_cc & ~E_agree).sum() / ncfs).item()
-            E_causal = ((E_causal_change & ~E_agree).sum() / ncfs).item()
-            E_trivial = ((E_cc & E_agree).float().mean().item())
+            sce = successful_cf.float().mean().item()
+            non_causal_flip = ((E_cc & ~E_agree).sum() / ncfs).item()
+            causal_flip = ((E_causal_change & ~E_agree).sum() / ncfs).item()
+            trivial = ((E_cc & E_agree).float().mean().item())
         else:
-            Esc = 0
-            Ecc = 1
-            E_causal = 0
-            E_trivial = 0
+            sce = 0
+            non_causal_flip = 1
+            causal_flip = 0
+            trivial = 0
 
-        return successful_cf, Esc, Ecc, E_causal, E_trivial
+        return successful_cf, sce, non_causal_flip, causal_flip, trivial
 
 
     def _cosine_embedding(self, z, explainer, binarize=False):
@@ -331,7 +335,7 @@ class Benchmark:
 
     def _accumulate_log(self, logger, metrics, x, decoded, idxs):
 
-        skip = metrics["Cardinality"] == 0
+        skip = metrics["Cardinality (S#)"] == 0
         to_log = []
         if not skip:
             b, c, h, w = x.size()
@@ -367,12 +371,11 @@ class Benchmark:
             self.run(**exp, **kwargs)
 
 
-    def run(self, explainer, logger=None, output_path=None, **kwargs):
+    def run(self, explainer, output_path=None, **kwargs):
         """Evaluates an explainer on the Bex benchmark
 
         Args:
             explainer (``string``): explainability method to be evaluated
-            logger (:py:class:`BasicLogger <Bex.loggers.BasicLogger>`, optional): logger to log results and examples, if `None` nothing will be logged (default: `None`)
             output_path (``string``, optional): directory to store results and examples if `logger` is not `None` (default: output/`datetime.now()`)
             **kwargs: keyword arguments for the explainer :py:mod:`Bex.explainers`
 
@@ -384,7 +387,7 @@ class Benchmark:
         """
 
         self._set_config(explainer, output_path)
-        explainer, logger = self._setup(explainer, logger, **kwargs)
+        explainer, logger = self._setup(explainer, **kwargs)
 
         print("Selecting optimal data subset...")
         self._select_data_subset(explainer)
@@ -408,19 +411,19 @@ class Benchmark:
             logits_perturbed = self.classifier.model(decoded)
 
             z_perturbed = z_perturbed.view(b, -1, c)
-            successful_cf, Esc, Ecc, E_causal, E_trivial = self._get_successful_cf(z_perturbed, latents, logits_perturbed, logits, explainer)
-            success, idxs = self._compute_metrics(latents, z_perturbed, successful_cf, explainer)
+            successful_cf, sce, non_causal_flip, causal_flip, trivial = self._get_successful_cf(z_perturbed, latents, logits_perturbed, logits, explainer)
+            cardinality, idxs = self._compute_metrics(latents, z_perturbed, successful_cf, explainer)
 
 
             if logger is not None:
-                metrics = {"Cardinality": success, "Esc": Esc, "Ecc": Ecc, "E_causal": E_causal, "E_trivial": E_trivial}
+                metrics = {"Cardinality (S#)": cardinality, "SCE":  sce, "Non-Causal Flip": non_causal_flip, "Causal FLip": causal_flip, "Trivial": trivial}
                 self._accumulate_log(logger, metrics, x, decoded, idxs)
             else:
-                metrics["Cardinality"].append(success)
-                metrics["Esc"].append(Esc)
-                metrics["Ecc"].append(Ecc)
-                metrics["E_causal"].append(E_causal)
-                metrics["E_trivial"].append(E_trivial)
+                metrics["Cardinality (S#)"].append(cardinality)
+                metrics["SCE"].append(sce)
+                metrics["Non-Causal Flip"].append(non_causal_flip)
+                metrics["Causal Flip"].append(causal_flip)
+                metrics["Trivial"].append(trivial)
 
 
         if logger is not None:
