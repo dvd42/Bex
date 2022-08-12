@@ -49,7 +49,8 @@ The benchmark includes different setting by modifying the number of correlated
 import bex
 bn = bex.Benchmark(n_corr=6, corr_level=0.95) # downloads necessary files
 bn.run("stylex", output_path="output") # or any of: "dive", "xgem", "lcf", "dice", "gs", "IS" (Oracle)
-print(bn.summarize()) # get the explainer's performance
+bn.run("IS", output_path="output/is")
+print(bn.summarize()) # get the performance of each explainer 
 ```
 
 ### Evaluate a custom explainer
