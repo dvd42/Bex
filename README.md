@@ -53,6 +53,9 @@ bn.run("IS", output_path="output/is")
 print(bn.summarize()) # get the performance of each explainer as a pandas dataframe
 ```
 
+You can reproduce the experiments in the paper by runnning `python run_benchmark.py`
+
+
 ### Evaluate a custom explainer
 
 You can evaluate your own explainer like so:
