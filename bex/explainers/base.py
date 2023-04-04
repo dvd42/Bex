@@ -18,6 +18,7 @@ class ExplainerBase:
         .. code-block:: python
 
             import random
+            from bex.explainers import ExplainerBase
 
             class DummyExplainer(ExplainerBase):
 

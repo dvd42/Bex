@@ -17,8 +17,8 @@ class Benchmark:
 
     """Main class to evaluate counterfactual explanations methods
 
-    Bex benchmark for evaluating explainability methods. For a list of supported methods see :py:mod:`Bex.explainers`
-    The benchmark also supports custom methods, for an example on how to create and evaluate your own methods see :py:class:`ExplainerBase <Bex.explainers.ExplainerBase>`
+    Bex benchmark for evaluating explainability methods. For a list of supported methods see :py:mod:`bex.explainers`
+    The benchmark also supports custom methods, for an example on how to create and evaluate your own methods see :py:class:`ExplainerBase <bex.explainers.ExplainerBase>`
 
     Args:
         batch_size (``int``, optional): dataloader batch size (default: 12)
@@ -29,7 +29,7 @@ class Benchmark:
         seed: (``int``, optional) numpy and torch random seed (default: 0)
         data_path (``str``, optional) path to download the datasets and models, defaults to (~/.bex)
         download(``bool``, optional) download the data for the benchmark if not in available locally. (default: True)
-        logger (:py:class:`BasicLogger <Bex.loggers.BasicLogger>`, optional): logger to log results and examples, if `None` nothing will be logged (default: :py:class:`<Bex.loggers.BasicLogger>`)
+        logger (:py:class:`BasicLogger <bex.loggers.BasicLogger>`, optional): logger to log results and examples, if `None` nothing will be logged (default: :py:class:`BasicLogger <bex.loggers.BasicLogger>`)
     """
 
     def __init__(self, batch_size=12, num_workers=8, n_samples=800, corr_level=0.95, n_corr=10, seed=0, logger=BasicLogger, data_path=None, download=True):
@@ -226,7 +226,7 @@ class Benchmark:
         Args:
             explainer (``string``): explainability method to be evaluated
             output_path (``string``, optional): directory to store results and examples if `logger` is not `None` (default: output/`datetime.now()`)
-            **kwargs: keyword arguments for the explainer :py:mod:`Bex.explainers`
+            **kwargs: keyword arguments for the explainer :py:mod:`bex.explainers`
 
         Example:
             .. code-block:: python

@@ -21,7 +21,7 @@ class BasicLogger:
 
     Args:
         attributes (``Dict``): dictionary containing the run config
-        path: (``string``): output path for the logger (see :py:meth:`run() <Bex.Benchmark.run>`)
+        path: (``string``): output path for the logger (see :py:meth:`run() <bex.Benchmark.run>`)
         n_batches: (``int``, optional): max number of image batches to log
 
     If you wish to test your own explainer on our benchmark use this as a base class and
@@ -106,7 +106,7 @@ class BasicLogger:
     def create_cf_figure(self):
 
         """Helper function to build a figure with the accumulated images. Must be called
-        before :py:meth:`log() <Bex.loggers.BasicLogger.log>`
+        before :py:meth:`log() <bex.loggers.BasicLogger.log>`
 
         """
 
@@ -141,7 +141,7 @@ class BasicLogger:
         """Log the average for each of the metrics computed by Bex along with a figure with
         some of the orthogonal counterfactuals produced.
 
-        The images will the be logged to output_path (see :py:meth:`run() <Bex.Benchmark.run>`) as a
+        The images will the be logged to output_path (see :py:meth:`run() <bex.Benchmark.run>`) as a
         `.png` file while the metrics along with the run config will be logged as a `.csv` file
 
         """
