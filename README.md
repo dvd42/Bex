@@ -1,4 +1,4 @@
-<img src="images/cover.pdf" alt="framework"/>
+<img src="images/cover.jpg" alt="framework"/>
 
 # A Benchmark For Counterfactual Explainers
 
