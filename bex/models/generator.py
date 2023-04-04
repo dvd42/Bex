@@ -3,9 +3,7 @@ import os
 import torch
 import torch.nn.functional as F
 from tqdm import tqdm
-from haven import haven_utils as hu
-from torchvision.utils import make_grid
-import matplotlib.pyplot as plt
+from ..utils import hash_dict
 from .backbones import get_backbone, Discriminator, DiscriminatorLoss
 
 
@@ -83,10 +81,8 @@ class Generator(torch.nn.Module):
         self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=self.exp_dict["max_epoch"])
 
         self.oracle = None
-        # self.oracle = self.load_oracle().cuda()
         if "weights" in self.exp_dict:
-            self.load_state_dict(hu.torch_load(self.exp_dict["weights"]))
-        # self.freeze_oracle()
+            self.load_state_dict(torch.load(self.exp_dict["weights"]))
 
     def freeze_oracle(self):
 
@@ -105,24 +101,11 @@ class Generator(torch.nn.Module):
         if "weights" in oracle_dict:
             weights = oracle_dict["weights"]
         else:
-            weights = os.path.join(self.exp_dict["savedir_base"], hu.hash_dict(oracle_dict), "model.pth")
+            weights = os.path.join(self.exp_dict["savedir_base"], hash_dict(oracle_dict), "model.pth")
 
-        oracle.load_state_dict(hu.torch_load(weights)["model"])
+        oracle.load_state_dict(torch.load(weights)["model"])
 
         return oracle
-
-
-    def save_img(self, name, images, reconstructions, idx=0):
-
-        f, ax = plt.subplots(1, 2)
-        f.set_size_inches(15.5, 15.5)
-        ax[0].imshow(images.cpu().permute(1, 2, 0))
-        ax[1].imshow(reconstructions.cpu().permute(1, 2, 0))
-        ax[0].axis('off')
-        ax[1].axis('off')
-
-        wandb.log({name: f}, commit=False)
-        plt.close()
 
 
     def train_on_batch(self, batch_idx, batch):
@@ -215,9 +198,6 @@ class Generator(torch.nn.Module):
         ret.update(dict(recontructed_char_acc=char_acc,
                         reconstructed_att_loss=att_mse.item(),
                         reconstructed_font_acc=font_acc))
-
-        if vis_flag and batch_idx == 0 and (epoch + 1) % 10 == 0:
-            self.save_img("val_reconstruction", make_grid(x), make_grid(reconstruction), epoch)
 
         return ret
 
