@@ -29,6 +29,7 @@ pip install bex
 ## Usage
 
 For more information about the usage check out the [Documentation](https://dvd42.github.io/Bex)
+
 We provide a set of counterfactuals explainers already implemented in the benchmark:
 
 1. [Beyond Trivial Counterfactual Explanations with Diverse Valuable Explanations](https://arxiv.org/abs/2103.10226) (DiVE)
