@@ -1,6 +1,4 @@
-import copy
 default_configs = {}
-
 
 solid = {
     "backend": "synbols_hdf5",

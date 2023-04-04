@@ -3,7 +3,6 @@ import pandas as pd
 import torch
 import copy
 import numpy as np
-import torch.nn.functional as F
 from tqdm import tqdm
 
 from .models import get_model
@@ -11,6 +10,7 @@ from .loggers import BasicLogger
 from .explainers import get_explainer
 from .datasets import get_dataset, DatasetWrapper
 from .models.configs import default_configs
+from .utils import get_successful_cf, bound_z, normalize_embeddings, compute_metrics
 
 
 class Benchmark:
@@ -23,16 +23,20 @@ class Benchmark:
     Args:
         batch_size (``int``, optional): dataloader batch size (default: 12)
         num_workers (``int``, optional): dataloader number of workers (default: 2)
-        n_samples (``int``, optional): total number of samples to explain (default: 800)
+        n_samples (``int``, optional): number of samples to explain per confidence level (default: 100)
         corr_level (``float``, optional): `0.50` or `0.95` correlation level of the spuriously correlated attributes :math:`z_{\\text{corr}}` (default: 0.95)
         n_corr (``int``, optional): `6` or `10` number of correlated attributes (default: 10)
         seed: (``int``, optional) numpy and torch random seed (default: 0)
+        data_path (``str``, optional) path to download the datasets and models, defaults to (~/.bex)
+        download(``bool``, optional) download the data for the benchmark if not in available locally. (default: True)
         logger (:py:class:`BasicLogger <Bex.loggers.BasicLogger>`, optional): logger to log results and examples, if `None` nothing will be logged (default: :py:class:`<Bex.loggers.BasicLogger>`)
     """
 
-    def __init__(self, batch_size=12, num_workers=2, n_samples=800, corr_level=0.95, n_corr=10, seed=0, logger=BasicLogger):
+    def __init__(self, batch_size=12, num_workers=8, n_samples=800, corr_level=0.95, n_corr=10, seed=0, logger=BasicLogger, data_path=None, download=True):
 
-        self.data_path = os.path.join(os.path.expanduser("~"), ".bex")
+        self.data_path = data_path
+        if data_path is None:
+            self.data_path = os.path.join(os.path.expanduser("~"), ".bex")
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.n_samples = n_samples
@@ -40,31 +44,31 @@ class Benchmark:
         self.corr_level = corr_level
         self.n_corr = n_corr
         self.seed = seed
-        self._tau = 0.15
         self.logger = logger
 
         self.classifier_name = "resnet"
         self.results = []
         self.current_config = {}
 
+        self.device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+
         dataset = copy.deepcopy(default_configs["dataset"][self.dataset_name])
         dataset["name"] += f"_corr{self.corr_level}_n_clusters{self.n_corr}.h5py"
         print("Loading data...")
-        train_set, val_set = get_dataset(["train", "val"], self.data_path, dataset)
+        train_set, val_set = get_dataset(["train", "val"], self.data_path, dataset, download=download)
         self.train_dataset = DatasetWrapper(train_set)
         self.val_dataset = DatasetWrapper(val_set)
 
-        generator = get_model("generator", self.data_path).eval()
+        generator = get_model("generator", self.data_path, download=download).eval()
         self.encoder = generator.model.embed_attributes
         self.generator = generator
-
 
         att = "_" + self.dataset_name.split("_")[1]
         weights = f"_corr{self.corr_level}_n_clusters{self.n_corr}.pth"
         model_name = self.classifier_name + att
         default_configs[model_name]["weights"] = "resnet_font" + weights
 
-        self.classifier = get_model(model_name, self.data_path).eval()
+        self.classifier = get_model(model_name, self.data_path, download=download).eval()
         self.train_loader = self._get_loader(self.train_dataset, batch_size=512)
         self.val_loader = self._get_loader(self.val_dataset, batch_size=self.batch_size)
 
@@ -116,7 +120,7 @@ class Benchmark:
             for confidence in [-0.9, -0.6, -0.4, -0.1, 0.1, 0.4, 0.6, 0.9]:
                 # obtain samples that are closest to the required level of confidence
                 indices.append(np.abs(labels - preds.max(1) - confidence).argsort()
-                                [:self.n_samples // 8])
+                                [:self.n_samples])
             indices = np.concatenate(indices, 0)
             self.val_loader.dataset.indices = indices
 
@@ -139,10 +143,10 @@ class Benchmark:
     def _prepare_batch(self, batch, explainer):
 
         idx, images, labels, categorical_att, continuous_att = batch
-        x = images.cuda()
-        y = labels.cuda()
-        categorical_att = categorical_att.cuda()
-        continuous_att = continuous_att.cuda()
+        x = images.to(self.device)
+        y = labels.to(self.device)
+        categorical_att = categorical_att.to(self.device)
+        continuous_att = continuous_att.to(self.device)
 
         latents = explainer._get_latents(idx)
         logits = explainer._get_logits(idx)
@@ -161,7 +165,7 @@ class Benchmark:
                 upper = explainer.mus_max[i].to(latents.device)
                 clipped[..., i] = torch.clamp(latents[..., i], min=lower, max=upper)
 
-            clipped = clipped * explainer.latent_std.cuda() + explainer.latent_mean.cuda()
+            clipped = clipped * explainer.latent_std.to(latents.device) + explainer.latent_mean.to(latents.device)
             # binarize inverse color attribute
             clipped[:, -5] = torch.where(clipped[:, -5] < 0.5, 0, 1)
 
@@ -169,160 +173,6 @@ class Benchmark:
             return self.generator.model.decode(clipped)
 
         return _generator
-
-    # bound perturbations to lr-ball
-    def _bound_z(self, z_perturbed, latents, explainer):
-
-        weights_char = self.generator.model.char_embedding.weight.clone()
-        weights_font = self.generator.model.font_embedding.weight.clone()
-        weights_char = (weights_char - explainer.latent_mean[:3].cuda()) / explainer.latent_std[:3].cuda()
-        weights_font = (weights_font - explainer.latent_mean[3:6].cuda()) / explainer.latent_std[3:6].cuda()
-        b, ne , c = z_perturbed.size()
-        latents = latents[:, None, :].repeat(1, ne, 1).view(-1, c)
-        z_perturbed = z_perturbed.view(-1 ,c)
-        delta = z_perturbed - latents
-
-        r_cont = 1.
-        norm = torch.linalg.norm(delta[:, -5:], 1, -1) + 1e-6
-        r = torch.ones_like(norm) * r_cont
-        delta[:, -5:] = torch.minimum(norm, r)[:, None] * delta[:, -5:] / norm[:, None]
-        delta = torch.minimum(norm, r)[:, None] * delta / norm[:, None]
-
-        # character
-        r_char = torch.cdist(weights_char, weights_char, p=1).max()
-        norm = torch.linalg.norm(delta[:, :3], 1, -1) + 1e-6
-        r = torch.ones_like(norm) * r_char
-        delta[:, :3] = torch.minimum(norm, r)[:, None] * delta[:, :3] / norm[:, None]
-
-        # font
-        r_font = torch.cdist(weights_font, weights_font, p=1).max()
-        norm = torch.linalg.norm(delta[:, 3:6], 1, -1) + 1e-6
-        r = torch.ones_like(norm) * r_font
-        delta[:, 3:6] = torch.minimum(norm, r)[:, None] * delta[:, 3:6] / norm[:, None]
-
-        z_perturbed = latents + delta
-
-        return z_perturbed.view(b, ne, c)
-
-
-    def _get_successful_cf(self, z_perturbed, z, perturbed_logits, logits, explainer):
-
-        b, ne, c = z_perturbed.size()
-        z = z[:, None, :].repeat(1, ne, 1).view(b, ne, c)
-        logits = logits[:, None, :].repeat(1, ne, 1).view(b * ne, -1)
-        z_perturbed = self._cosine_embedding(z_perturbed, explainer)
-        z = self._cosine_embedding(z, explainer)
-        perturbed_preds = z_perturbed.view(-1, z_perturbed.size(-1))[:, :48].argmax(1)
-        preds = z.view(-1, z.size(-1))[:, :48].argmax(1)
-
-        oracle = torch.zeros_like(preds)
-        perturbed_oracle = torch.zeros_like(preds)
-        oracle[preds % 2 == 1] = 1
-        perturbed_oracle[perturbed_preds % 2 == 1] = 1
-
-        classifier = logits.argmax(1).view(b, ne)
-        perturbed_classifier = perturbed_logits.argmax(1).view(b, ne)
-        oracle = oracle.view(b, ne)
-        perturbed_oracle = perturbed_oracle.view(b, ne)
-
-        E_cc = perturbed_classifier != classifier
-        E_causal_change = ~E_cc & (perturbed_oracle != oracle)
-        E_agree = (classifier == oracle) & (perturbed_classifier == perturbed_oracle)
-        successful_cf = (E_cc | E_causal_change) & ~E_agree
-
-        ncfs = successful_cf.sum() if successful_cf.sum() !=0 else 1
-        if successful_cf.sum() != 0:
-            sce = successful_cf.float().mean().item()
-            non_causal_flip = ((E_cc & ~E_agree).sum() / ncfs).item()
-            causal_flip = ((E_causal_change & ~E_agree).sum() / ncfs).item()
-            trivial = ((E_cc & E_agree).float().mean().item())
-        else:
-            sce = 0
-            non_causal_flip = 1
-            causal_flip = 0
-            trivial = 0
-
-        return successful_cf, sce, non_causal_flip, causal_flip, trivial
-
-
-    def _cosine_embedding(self, z, explainer, binarize=False):
-
-        b, ne, c = z.size()
-        z = z.view(-1, c)
-        weights_char = self.generator.model.char_embedding.weight.clone()
-        weights_font = self.generator.model.font_embedding.weight.clone()
-        weights_char = (weights_char - explainer.latent_mean[:3].cuda()) / explainer.latent_std[:3].cuda()
-        weights_font = (weights_font - explainer.latent_mean[3:6].cuda()) / explainer.latent_std[3:6].cuda()
-        # first 3 are the embedding of char class
-        # the next 3 font embedding
-        z_char = z[:, None, :3]
-        z_font = z[:, None, 3:6]
-        char = torch.softmax((torch.linalg.norm(weights_char[None, ...] - z_char, 2, dim=-1) * -3), dim=-1)
-        font = torch.softmax((torch.linalg.norm(weights_font[None, ...] - z_font, 2, dim=-1) * -3), dim=-1)
-
-        if binarize:
-            char_max = char.argmax(-1)
-            font_max = font.argmax(-1)
-            char = torch.zeros(b * ne, 48).cuda()
-            char[torch.arange(b * ne), char_max] = 1
-            font = torch.zeros(b * ne, 48).cuda()
-            font[torch.arange(b* ne), font_max] = 1
-
-        z = torch.cat((char, font, z[:, -5:]), 1)
-
-        return z.view(b, ne, -1)
-
-    @torch.no_grad()
-    def _compute_metrics(self, z, z_perturbed, successful_cf, explainer):
-
-        if successful_cf.sum() == 0:
-            return 0, None
-
-        b, ne, c = z_perturbed.size()
-        z = z[:, None, :].repeat(1, ne, 1).view(b, ne, -1).detach()
-        z = self._cosine_embedding(z, explainer, binarize=True)
-        z_perturbed = self._cosine_embedding(z_perturbed, explainer)
-
-        z_perturbed = z_perturbed.view_as(z).detach()
-
-        success = []
-        idxs = []
-        for i, samples in enumerate(successful_cf):
-
-            if z[i][samples].numel() == 0:
-                continue
-
-            ortho_set = torch.tensor([]).to(z_perturbed.device)
-            norm = torch.linalg.norm(z[i][samples] - z_perturbed[i][samples], ord=1, dim=-1)
-            norm_sort = torch.argsort(norm)
-            z_perturbed_sorted = z_perturbed[i][norm_sort]
-            z_sorted = z[i][norm_sort]
-
-            idx = []
-            for j, (exp, latent) in enumerate(zip(z_perturbed_sorted, z_sorted)):
-
-                exp[-5:] = latent[-5:] - exp[-5:]
-                exp[:-5] = exp[:-5] * (1 - latent[:-5])
-                exp = exp[None]
-
-                if ortho_set.numel() == 0:
-                    idx.append(j)
-                    ortho_set = torch.cat((ortho_set, exp), 0)
-
-                else:
-                    cos_discrete = torch.cosine_similarity(exp[:, :-5], ortho_set[:, :-5])
-                    cos_cont = torch.cosine_similarity(exp[:, -5:], ortho_set[:, -5:])
-                    cos_sim = cos_discrete + cos_cont
-                    if torch.all(cos_sim.abs() < self._tau) or torch.any(cos_sim < -1 + self._tau):
-
-                        idx.append(j)
-                        ortho_set = torch.cat((ortho_set, exp), 0)
-
-            success.append(ortho_set.size(0))
-            idxs.append((i, samples.nonzero().view(-1)[norm_sort[idx]]))
-
-
-        return np.mean(success), idxs
 
 
     def _cleanup(self, explainer):
@@ -370,6 +220,7 @@ class Benchmark:
 
 
     def run(self, explainer, output_path=None, **kwargs):
+
         """Evaluates an explainer on the Bex benchmark
 
         Args:
@@ -394,6 +245,15 @@ class Benchmark:
         if logger is None:
             metrics = {"Cardinality": [], "Esc": [], "Ecc": [], "E_causal": [], "E_trivial": []}
 
+        mean = explainer.latent_mean
+        std = explainer.latent_std
+
+        embedding_char = self.generator.model.char_embedding.weight.clone()
+        embedding_font = self.generator.model.font_embedding.weight.clone()
+
+        char_embed = normalize_embeddings(embedding_char, mean[:3], std[:3])
+        font_embed = normalize_embeddings(embedding_font, mean[3:6], std[3:6])
+
         for batch in tqdm(self.val_loader):
 
             latents, logits, x, y, categorical_att, continuous_att = self._prepare_batch(batch, explainer)
@@ -403,24 +263,23 @@ class Benchmark:
             z_perturbed = explainer.explain_batch(latents, logits, x, self.classifier.model, generator)
             z_perturbed = z_perturbed.detach()
 
-            z_perturbed = self._bound_z(z_perturbed, latents, explainer)
+            z_perturbed = bound_z(z_perturbed, latents, char_embed, font_embed)
 
             decoded = generator(z_perturbed.view(-1, c))
             logits_perturbed = self.classifier.model(decoded)
 
             z_perturbed = z_perturbed.view(b, -1, c)
-            successful_cf, sce, non_causal_flip, causal_flip, trivial = self._get_successful_cf(z_perturbed, latents, logits_perturbed, logits, explainer)
-            cardinality, idxs = self._compute_metrics(latents, z_perturbed, successful_cf, explainer)
-
+            successful_cf, sce, ncf, cf, trivial = get_successful_cf(z_perturbed, latents, logits_perturbed, logits, char_embed, font_embed)
+            cardinality, idxs = compute_metrics(latents, z_perturbed, successful_cf, char_embed, font_embed)
 
             if logger is not None:
-                metrics = {"Cardinality (S#)": cardinality, "SCE":  sce, "Non-Causal Flip": non_causal_flip, "Causal FLip": causal_flip, "Trivial": trivial}
+                metrics = {"Cardinality (S#)": cardinality, "SCE":  sce, "Non-Causal Flip": ncf, "Causal FLip": cf, "Trivial": trivial}
                 self._accumulate_log(logger, metrics, x, decoded, idxs)
             else:
                 metrics["Cardinality (S#)"].append(cardinality)
                 metrics["SCE"].append(sce)
-                metrics["Non-Causal Flip"].append(non_causal_flip)
-                metrics["Causal Flip"].append(causal_flip)
+                metrics["Non-Causal Flip"].append(ncf)
+                metrics["Causal Flip"].append(cf)
                 metrics["Trivial"].append(trivial)
 
 
@@ -432,6 +291,7 @@ class Benchmark:
             self.results.append({"explainer": self.current_config["explainer_name"], **metrics})
 
         self._cleanup(explainer)
+
 
     def summarize(self):
         """Summarize the metrics obtained by every explainer ran since :py:class:`Benchmark` was instantiated

@@ -52,7 +52,7 @@ class ExplainerBase:
     def _read_cache(self):
 
         print("Loading from %s" % self.digest)
-        self.loaded_data = h5py.File(self.digest, 'a', swmr=True)
+        self.loaded_data = h5py.File(self.digest, 'a')
         try:
             self.logits = torch.from_numpy(self.loaded_data['val_logits'][...])
             self.mus = torch.from_numpy(self.loaded_data['val_mus'][...])

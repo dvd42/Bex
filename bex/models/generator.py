@@ -233,14 +233,13 @@ class Generator(torch.nn.Module):
 
     def train_on_loader(self, epoch, data_loader, pretrained=False):
         """Iterate over the training set
-#
         Args:
             data_loader: iterable training data loader
             max_iter: max number of iterations to perform if the end of the dataset is not reached
         """
         self.n_data = len(data_loader.dataset)
         ret = {}
-        # Iterate through tasks, each iteration loads n tasks, with n = number of GPU
+
         self.model.train()
         self.discriminator.train()
 

@@ -1,4 +1,4 @@
-from .loggers import BasicLogger
+from .basic import BasicLogger
 
 __all__ = ["BasicLogger"]
 
