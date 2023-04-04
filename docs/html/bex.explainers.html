@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html class="writer-html5" lang="en" >
 <head>
-  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>bex.explainers package &mdash; BeX 0.1 documentation</title>
+  <title>bex.explainers package &mdash; BeX 0.5 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
   <!--[if lt IE 9]>
@@ -12,10 +12,8 @@
   <![endif]-->
   
         <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
-        <script src="_static/jquery.js"></script>
-        <script src="_static/underscore.js"></script>
-        <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
         <script src="_static/doctools.js"></script>
+        <script src="_static/sphinx_highlight.js"></script>
         <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
@@ -29,11 +27,15 @@
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
         <div class="wy-side-nav-search" >
-            <a href="index.html" class="icon icon-home"> BeX
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            BeX
           </a>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
-    <input type="text" name="q" placeholder="Search docs" />
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
     <input type="hidden" name="check_keywords" value="yes" />
     <input type="hidden" name="area" value="default" />
   </form>
@@ -68,10 +70,10 @@
         <div class="rst-content">
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
-          <li><a href="modules.html">bex</a> &raquo;</li>
-          <li><a href="bex.html">bex package</a> &raquo;</li>
-      <li>bex.explainers package</li>
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="modules.html">bex</a></li>
+          <li class="breadcrumb-item"><a href="bex.html">bex package</a></li>
+      <li class="breadcrumb-item active">bex.explainers package</li>
       <li class="wy-breadcrumbs-aside">
             <a href="_sources/bex.explainers.rst.txt" rel="nofollow"> View page source</a>
       </li>
@@ -91,7 +93,7 @@
 <dd><p>Bases: <a class="reference internal" href="#bex.explainers.ExplainerBase" title="bex.explainers.base.ExplainerBase"><code class="xref py py-class docutils literal notranslate"><span class="pre">ExplainerBase</span></code></a></p>
 <p>DiCE explainer as described in <a class="reference external" href="https://arxiv.org/abs/1905.07697">https://arxiv.org/abs/1905.07697</a></p>
 <dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>num_explanations</strong> (<code class="docutils literal notranslate"><span class="pre">int</span></code>, optional) – number of counterfactuals to be generated (default: 10)</p></li>
 <li><p><strong>lr</strong> (<code class="docutils literal notranslate"><span class="pre">float</span></code>, optional) – learning rate (default: 0.1)</p></li>
@@ -106,19 +108,19 @@
 <span class="sig-name descname"><span class="pre">explain_batch</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">latents</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logits</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">images</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">classifier</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">generator</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#bex.explainers.Dice.explain_batch" title="Permalink to this definition"></a></dt>
 <dd><p>Method to generate a set of counterfactuals for a given batch</p>
 <dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>latents</strong> (<code class="docutils literal notranslate"><span class="pre">torch.Tensor</span></code>) – standardized latent <span class="math notranslate nohighlight">\(\textbf{z}\)</span> representation of samples to be perturbed</p></li>
 <li><p><strong>logits</strong> (<code class="docutils literal notranslate"><span class="pre">torch.Tensor</span></code>) – classifier logits given <span class="math notranslate nohighlight">\(\textbf{z}\)</span></p></li>
 <li><p><strong>images</strong> (<code class="docutils literal notranslate"><span class="pre">torch.Tensor</span></code>) – images <span class="math notranslate nohighlight">\(x\)</span> produced by the generator given <span class="math notranslate nohighlight">\(\textbf{z}\)</span></p></li>
 <li><p><strong>classifier</strong> (<code class="docutils literal notranslate"><span class="pre">torch.nn.Module</span></code>) – classifier to explain <span class="math notranslate nohighlight">\(\hat{f}(x)\)</span></p></li>
-<li><p><strong>generator</strong> (<code class="docutils literal notranslate"><span class="pre">Callable</span></code>) – function that takes a batch of latents <span class="math notranslate nohighlight">\(\textbf{z'}\)</span> and returns a batch of images</p></li>
+<li><p><strong>generator</strong> (<code class="docutils literal notranslate"><span class="pre">callable</span></code>) – function that takes a batch of latents <span class="math notranslate nohighlight">\(\textbf{z'}\)</span> and returns a batch of images</p></li>
 </ul>
 </dd>
-<dt class="field-even">Returns</dt>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p>the obtained counterfactuals <span class="math notranslate nohighlight">\(\textbf{z'}\)</span> for each batch element</p>
 </dd>
-<dt class="field-odd">Return type</dt>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p>(<code class="docutils literal notranslate"><span class="pre">torch.Tensor</span></code>)</p>
 </dd>
 </dl>
@@ -135,11 +137,11 @@
 
 <dl class="py class">
 <dt class="sig sig-object py" id="bex.explainers.Dive">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">bex.explainers.</span></span><span class="sig-name descname"><span class="pre">Dive</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">num_explanations</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lr</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_iters</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">50</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">diversity_weight</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lasso_weight</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reconstruction_weight</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.001</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">method</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'fisher_spectral'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#bex.explainers.Dive" title="Permalink to this definition"></a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">bex.explainers.</span></span><span class="sig-name descname"><span class="pre">Dive</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">num_explanations</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lr</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_iters</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">50</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">diversity_weight</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.001</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lasso_weight</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reconstruction_weight</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0001</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">method</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'fisher_spectral'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#bex.explainers.Dive" title="Permalink to this definition"></a></dt>
 <dd><p>Bases: <a class="reference internal" href="#bex.explainers.ExplainerBase" title="bex.explainers.base.ExplainerBase"><code class="xref py py-class docutils literal notranslate"><span class="pre">ExplainerBase</span></code></a></p>
 <p>DiVE algorithm as described in <a class="reference external" href="https://arxiv.org/abs/2103.10226">https://arxiv.org/abs/2103.10226</a></p>
 <dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>num_explanations</strong> (<code class="docutils literal notranslate"><span class="pre">int</span></code>, optional) – number of counterfactuals to be generated (default: 10)</p></li>
 <li><p><strong>lr</strong> (<code class="docutils literal notranslate"><span class="pre">float</span></code>, optional) – learning rate (default: 0.1)</p></li>
@@ -156,19 +158,19 @@
 <span class="sig-name descname"><span class="pre">explain_batch</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">latents</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logits</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">images</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">classifier</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">generator</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#bex.explainers.Dive.explain_batch" title="Permalink to this definition"></a></dt>
 <dd><p>Method to generate a set of counterfactuals for a given batch</p>
 <dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>latents</strong> (<code class="docutils literal notranslate"><span class="pre">torch.Tensor</span></code>) – standardized latent <span class="math notranslate nohighlight">\(\textbf{z}\)</span> representation of samples to be perturbed</p></li>
 <li><p><strong>logits</strong> (<code class="docutils literal notranslate"><span class="pre">torch.Tensor</span></code>) – classifier logits given <span class="math notranslate nohighlight">\(\textbf{z}\)</span></p></li>
 <li><p><strong>images</strong> (<code class="docutils literal notranslate"><span class="pre">torch.Tensor</span></code>) – images <span class="math notranslate nohighlight">\(x\)</span> produced by the generator given <span class="math notranslate nohighlight">\(\textbf{z}\)</span></p></li>
 <li><p><strong>classifier</strong> (<code class="docutils literal notranslate"><span class="pre">torch.nn.Module</span></code>) – classifier to explain <span class="math notranslate nohighlight">\(\hat{f}(x)\)</span></p></li>
-<li><p><strong>generator</strong> (<code class="docutils literal notranslate"><span class="pre">Callable</span></code>) – function that takes a batch of latents <span class="math notranslate nohighlight">\(\textbf{z'}\)</span> and returns a batch of images</p></li>
+<li><p><strong>generator</strong> (<code class="docutils literal notranslate"><span class="pre">callable</span></code>) – function that takes a batch of latents <span class="math notranslate nohighlight">\(\textbf{z'}\)</span> and returns a batch of images</p></li>
 </ul>
 </dd>
-<dt class="field-even">Returns</dt>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p>the obtained counterfactuals <span class="math notranslate nohighlight">\(\textbf{z'}\)</span> for each batch element</p>
 </dd>
-<dt class="field-odd">Return type</dt>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p>(<code class="docutils literal notranslate"><span class="pre">torch.Tensor</span></code>)</p>
 </dd>
 </dl>
@@ -189,12 +191,12 @@
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
 <p>Base class for all explainer methods</p>
 <p>If you wish to test your own explainer on our benchmark use this as a base class and
-override the <code class="docutils literal notranslate"><span class="pre">explain_batch()</span></code> method</p>
+override the <code class="docutils literal notranslate"><span class="pre">explain_batch</span></code> method</p>
 <p class="rubric">Example</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">bex</span>
-<span class="kn">import</span> <span class="nn">random</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">random</span>
+<span class="kn">from</span> <span class="nn">bex.explainers</span> <span class="kn">import</span> <span class="n">ExplainerBase</span>
 
-<span class="k">class</span> <span class="nc">DummyExplainer</span><span class="p">(</span><span class="n">bex</span><span class="o">.</span><span class="n">explainers</span><span class="o">.</span><span class="n">ExplainerBase</span><span class="p">):</span>
+<span class="k">class</span> <span class="nc">DummyExplainer</span><span class="p">(</span><span class="n">ExplainerBase</span><span class="p">):</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">num_explanations</span><span class="p">):</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
@@ -202,12 +204,12 @@ override the <code class="docutils literal notranslate"><span class="pre">explai
 
     <span class="k">def</span> <span class="nf">explain_batch</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">latents</span><span class="p">,</span> <span class="n">logits</span><span class="p">,</span> <span class="n">images</span><span class="p">,</span> <span class="n">classifier</span><span class="p">,</span> <span class="n">generator</span><span class="p">):</span>
 
-        <span class="n">b</span><span class="p">,</span> <span class="n">c</span> <span class="o">=</span> <span class="n">latents</span><span class="o">.</span><span class="n">size</span><span class="p">()</span>
+        <span class="n">b</span> <span class="o">=</span> <span class="n">latents</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
         <span class="c1"># we will produce self.num_explanations counterfactuals per sample</span>
         <span class="n">z</span> <span class="o">=</span> <span class="n">latents</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_explanations</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
         <span class="n">z_perturbed</span> <span class="o">=</span> <span class="n">z</span> <span class="o">+</span> <span class="n">random</span><span class="o">.</span><span class="n">random</span><span class="p">()</span> <span class="c1"># create counterfactuals z&#39;</span>
 
-        <span class="k">return</span> <span class="n">z_perturbed</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="n">b</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_explanations</span><span class="p">,</span> <span class="n">c</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">z_perturbed</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="n">b</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_explanations</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
 
 <span class="n">bn</span> <span class="o">=</span> <span class="n">bex</span><span class="o">.</span><span class="n">Benchmark</span><span class="p">()</span>
 <span class="n">bn</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">DummyExplainer</span><span class="p">,</span> <span class="n">num_explanations</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
@@ -218,19 +220,19 @@ override the <code class="docutils literal notranslate"><span class="pre">explai
 <em class="property"><span class="pre">abstract</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">explain_batch</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">latents</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logits</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">images</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">classifier</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">generator</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#bex.explainers.ExplainerBase.explain_batch" title="Permalink to this definition"></a></dt>
 <dd><p>Method to generate a set of counterfactuals for a given batch</p>
 <dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>latents</strong> (<code class="docutils literal notranslate"><span class="pre">torch.Tensor</span></code>) – standardized latent <span class="math notranslate nohighlight">\(\textbf{z}\)</span> representation of samples to be perturbed</p></li>
 <li><p><strong>logits</strong> (<code class="docutils literal notranslate"><span class="pre">torch.Tensor</span></code>) – classifier logits given <span class="math notranslate nohighlight">\(\textbf{z}\)</span></p></li>
 <li><p><strong>images</strong> (<code class="docutils literal notranslate"><span class="pre">torch.Tensor</span></code>) – images <span class="math notranslate nohighlight">\(x\)</span> produced by the generator given <span class="math notranslate nohighlight">\(\textbf{z}\)</span></p></li>
 <li><p><strong>classifier</strong> (<code class="docutils literal notranslate"><span class="pre">torch.nn.Module</span></code>) – classifier to explain <span class="math notranslate nohighlight">\(\hat{f}(x)\)</span></p></li>
-<li><p><strong>generator</strong> (<code class="docutils literal notranslate"><span class="pre">Callable</span></code>) – function that takes a batch of latents <span class="math notranslate nohighlight">\(\textbf{z'}\)</span> and returns a batch of images</p></li>
+<li><p><strong>generator</strong> (<code class="docutils literal notranslate"><span class="pre">callable</span></code>) – function that takes a batch of latents <span class="math notranslate nohighlight">\(\textbf{z'}\)</span> and returns a batch of images</p></li>
 </ul>
 </dd>
-<dt class="field-even">Returns</dt>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p>the obtained counterfactuals <span class="math notranslate nohighlight">\(\textbf{z'}\)</span> for each batch element</p>
 </dd>
-<dt class="field-odd">Return type</dt>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p>(<code class="docutils literal notranslate"><span class="pre">torch.Tensor</span></code>)</p>
 </dd>
 </dl>
@@ -259,19 +261,19 @@ decrease_radius(<code class="docutils literal notranslate"><span class="pre">flo
 <span class="sig-name descname"><span class="pre">explain_batch</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">latents</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logits</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">images</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">classifier</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">generator</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#bex.explainers.GrowingSpheres.explain_batch" title="Permalink to this definition"></a></dt>
 <dd><p>Method to generate a set of counterfactuals for a given batch</p>
 <dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>latents</strong> (<code class="docutils literal notranslate"><span class="pre">torch.Tensor</span></code>) – standardized latent <span class="math notranslate nohighlight">\(\textbf{z}\)</span> representation of samples to be perturbed</p></li>
 <li><p><strong>logits</strong> (<code class="docutils literal notranslate"><span class="pre">torch.Tensor</span></code>) – classifier logits given <span class="math notranslate nohighlight">\(\textbf{z}\)</span></p></li>
 <li><p><strong>images</strong> (<code class="docutils literal notranslate"><span class="pre">torch.Tensor</span></code>) – images <span class="math notranslate nohighlight">\(x\)</span> produced by the generator given <span class="math notranslate nohighlight">\(\textbf{z}\)</span></p></li>
 <li><p><strong>classifier</strong> (<code class="docutils literal notranslate"><span class="pre">torch.nn.Module</span></code>) – classifier to explain <span class="math notranslate nohighlight">\(\hat{f}(x)\)</span></p></li>
-<li><p><strong>generator</strong> (<code class="docutils literal notranslate"><span class="pre">Callable</span></code>) – function that takes a batch of latents <span class="math notranslate nohighlight">\(\textbf{z'}\)</span> and returns a batch of images</p></li>
+<li><p><strong>generator</strong> (<code class="docutils literal notranslate"><span class="pre">callable</span></code>) – function that takes a batch of latents <span class="math notranslate nohighlight">\(\textbf{z'}\)</span> and returns a batch of images</p></li>
 </ul>
 </dd>
-<dt class="field-even">Returns</dt>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p>the obtained counterfactuals <span class="math notranslate nohighlight">\(\textbf{z'}\)</span> for each batch element</p>
 </dd>
-<dt class="field-odd">Return type</dt>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p>(<code class="docutils literal notranslate"><span class="pre">torch.Tensor</span></code>)</p>
 </dd>
 </dl>
@@ -292,7 +294,7 @@ decrease_radius(<code class="docutils literal notranslate"><span class="pre">flo
 <dd><p>Bases: <a class="reference internal" href="#bex.explainers.ExplainerBase" title="bex.explainers.base.ExplainerBase"><code class="xref py py-class docutils literal notranslate"><span class="pre">ExplainerBase</span></code></a></p>
 <p>Latent-CF explainer as described in <a class="reference external" href="https://arxiv.org/abs/2012.09301">https://arxiv.org/abs/2012.09301</a></p>
 <dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>num_explanations</strong> (<code class="docutils literal notranslate"><span class="pre">int</span></code>, optional) – number of counterfactuals to be generated (default: 10)</p></li>
 <li><p><strong>lr</strong> (<code class="docutils literal notranslate"><span class="pre">float</span></code>, optional) – learning rate (default: 0.1)</p></li>
@@ -307,19 +309,19 @@ decrease_radius(<code class="docutils literal notranslate"><span class="pre">flo
 <span class="sig-name descname"><span class="pre">explain_batch</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">latents</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logits</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">images</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">classifier</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">generator</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#bex.explainers.LCF.explain_batch" title="Permalink to this definition"></a></dt>
 <dd><p>Method to generate a set of counterfactuals for a given batch</p>
 <dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>latents</strong> (<code class="docutils literal notranslate"><span class="pre">torch.Tensor</span></code>) – standardized latent <span class="math notranslate nohighlight">\(\textbf{z}\)</span> representation of samples to be perturbed</p></li>
 <li><p><strong>logits</strong> (<code class="docutils literal notranslate"><span class="pre">torch.Tensor</span></code>) – classifier logits given <span class="math notranslate nohighlight">\(\textbf{z}\)</span></p></li>
 <li><p><strong>images</strong> (<code class="docutils literal notranslate"><span class="pre">torch.Tensor</span></code>) – images <span class="math notranslate nohighlight">\(x\)</span> produced by the generator given <span class="math notranslate nohighlight">\(\textbf{z}\)</span></p></li>
 <li><p><strong>classifier</strong> (<code class="docutils literal notranslate"><span class="pre">torch.nn.Module</span></code>) – classifier to explain <span class="math notranslate nohighlight">\(\hat{f}(x)\)</span></p></li>
-<li><p><strong>generator</strong> (<code class="docutils literal notranslate"><span class="pre">Callable</span></code>) – function that takes a batch of latents <span class="math notranslate nohighlight">\(\textbf{z'}\)</span> and returns a batch of images</p></li>
+<li><p><strong>generator</strong> (<code class="docutils literal notranslate"><span class="pre">callable</span></code>) – function that takes a batch of latents <span class="math notranslate nohighlight">\(\textbf{z'}\)</span> and returns a batch of images</p></li>
 </ul>
 </dd>
-<dt class="field-even">Returns</dt>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p>the obtained counterfactuals <span class="math notranslate nohighlight">\(\textbf{z'}\)</span> for each batch element</p>
 </dd>
-<dt class="field-odd">Return type</dt>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p>(<code class="docutils literal notranslate"><span class="pre">torch.Tensor</span></code>)</p>
 </dd>
 </dl>
@@ -348,19 +350,19 @@ strategy(<code class="docutils literal notranslate"><span class="pre">string</sp
 <span class="sig-name descname"><span class="pre">explain_batch</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">latents</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logits</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">images</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">classifier</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">generator</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#bex.explainers.Stylex.explain_batch" title="Permalink to this definition"></a></dt>
 <dd><p>Method to generate a set of counterfactuals for a given batch</p>
 <dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>latents</strong> (<code class="docutils literal notranslate"><span class="pre">torch.Tensor</span></code>) – standardized latent <span class="math notranslate nohighlight">\(\textbf{z}\)</span> representation of samples to be perturbed</p></li>
 <li><p><strong>logits</strong> (<code class="docutils literal notranslate"><span class="pre">torch.Tensor</span></code>) – classifier logits given <span class="math notranslate nohighlight">\(\textbf{z}\)</span></p></li>
 <li><p><strong>images</strong> (<code class="docutils literal notranslate"><span class="pre">torch.Tensor</span></code>) – images <span class="math notranslate nohighlight">\(x\)</span> produced by the generator given <span class="math notranslate nohighlight">\(\textbf{z}\)</span></p></li>
 <li><p><strong>classifier</strong> (<code class="docutils literal notranslate"><span class="pre">torch.nn.Module</span></code>) – classifier to explain <span class="math notranslate nohighlight">\(\hat{f}(x)\)</span></p></li>
-<li><p><strong>generator</strong> (<code class="docutils literal notranslate"><span class="pre">Callable</span></code>) – function that takes a batch of latents <span class="math notranslate nohighlight">\(\textbf{z'}\)</span> and returns a batch of images</p></li>
+<li><p><strong>generator</strong> (<code class="docutils literal notranslate"><span class="pre">callable</span></code>) – function that takes a batch of latents <span class="math notranslate nohighlight">\(\textbf{z'}\)</span> and returns a batch of images</p></li>
 </ul>
 </dd>
-<dt class="field-even">Returns</dt>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p>the obtained counterfactuals <span class="math notranslate nohighlight">\(\textbf{z'}\)</span> for each batch element</p>
 </dd>
-<dt class="field-odd">Return type</dt>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p>(<code class="docutils literal notranslate"><span class="pre">torch.Tensor</span></code>)</p>
 </dd>
 </dl>
@@ -377,11 +379,11 @@ strategy(<code class="docutils literal notranslate"><span class="pre">string</sp
 
 <dl class="py class">
 <dt class="sig sig-object py" id="bex.explainers.Xgem">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">bex.explainers.</span></span><span class="sig-name descname"><span class="pre">Xgem</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">num_explanations</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lr</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_iters</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">50</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reconstruction_weight</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.01</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#bex.explainers.Xgem" title="Permalink to this definition"></a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">bex.explainers.</span></span><span class="sig-name descname"><span class="pre">Xgem</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">num_explanations</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lr</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_iters</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">50</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reconstruction_weight</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.001</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#bex.explainers.Xgem" title="Permalink to this definition"></a></dt>
 <dd><p>Bases: <a class="reference internal" href="#bex.explainers.Dive" title="bex.explainers.dive.Dive"><code class="xref py py-class docutils literal notranslate"><span class="pre">Dive</span></code></a></p>
 <p>xGEM explainer as described in <a class="reference external" href="https://arxiv.org/abs/1806.08867">https://arxiv.org/abs/1806.08867</a></p>
 <dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>num_explanations</strong> (<code class="docutils literal notranslate"><span class="pre">int</span></code>, optional) – number of counterfactuals to be generated (default: 10)</p></li>
 <li><p><strong>lr</strong> (<code class="docutils literal notranslate"><span class="pre">float</span></code>, optional) – learning rate (default: 0.1)</p></li>
@@ -395,19 +397,19 @@ strategy(<code class="docutils literal notranslate"><span class="pre">string</sp
 <span class="sig-name descname"><span class="pre">explain_batch</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">latents</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logits</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">images</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">classifier</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">generator</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#bex.explainers.Xgem.explain_batch" title="Permalink to this definition"></a></dt>
 <dd><p>Method to generate a set of counterfactuals for a given batch</p>
 <dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>latents</strong> (<code class="docutils literal notranslate"><span class="pre">torch.Tensor</span></code>) – standardized latent <span class="math notranslate nohighlight">\(\textbf{z}\)</span> representation of samples to be perturbed</p></li>
 <li><p><strong>logits</strong> (<code class="docutils literal notranslate"><span class="pre">torch.Tensor</span></code>) – classifier logits given <span class="math notranslate nohighlight">\(\textbf{z}\)</span></p></li>
 <li><p><strong>images</strong> (<code class="docutils literal notranslate"><span class="pre">torch.Tensor</span></code>) – images <span class="math notranslate nohighlight">\(x\)</span> produced by the generator given <span class="math notranslate nohighlight">\(\textbf{z}\)</span></p></li>
 <li><p><strong>classifier</strong> (<code class="docutils literal notranslate"><span class="pre">torch.nn.Module</span></code>) – classifier to explain <span class="math notranslate nohighlight">\(\hat{f}(x)\)</span></p></li>
-<li><p><strong>generator</strong> (<code class="docutils literal notranslate"><span class="pre">Callable</span></code>) – function that takes a batch of latents <span class="math notranslate nohighlight">\(\textbf{z'}\)</span> and returns a batch of images</p></li>
+<li><p><strong>generator</strong> (<code class="docutils literal notranslate"><span class="pre">callable</span></code>) – function that takes a batch of latents <span class="math notranslate nohighlight">\(\textbf{z'}\)</span> and returns a batch of images</p></li>
 </ul>
 </dd>
-<dt class="field-even">Returns</dt>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p>the obtained counterfactuals <span class="math notranslate nohighlight">\(\textbf{z'}\)</span> for each batch element</p>
 </dd>
-<dt class="field-odd">Return type</dt>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p>(<code class="docutils literal notranslate"><span class="pre">torch.Tensor</span></code>)</p>
 </dd>
 </dl>

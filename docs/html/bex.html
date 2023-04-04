@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html class="writer-html5" lang="en" >
 <head>
-  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>bex package &mdash; BeX 0.1 documentation</title>
+  <title>bex package &mdash; BeX 0.5 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
   <!--[if lt IE 9]>
@@ -12,10 +12,8 @@
   <![endif]-->
   
         <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
-        <script src="_static/jquery.js"></script>
-        <script src="_static/underscore.js"></script>
-        <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
         <script src="_static/doctools.js"></script>
+        <script src="_static/sphinx_highlight.js"></script>
         <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
@@ -29,11 +27,15 @@
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
         <div class="wy-side-nav-search" >
-            <a href="index.html" class="icon icon-home"> BeX
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            BeX
           </a>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
-    <input type="text" name="q" placeholder="Search docs" />
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
     <input type="hidden" name="check_keywords" value="yes" />
     <input type="hidden" name="area" value="default" />
   </form>
@@ -48,7 +50,10 @@
 <li class="toctree-l4"><a class="reference internal" href="bex.loggers.html">bex.loggers package</a></li>
 </ul>
 </li>
-<li class="toctree-l3"><a class="reference internal" href="#module-bex">Module contents</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#module-bex">Module contents</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#bex.Benchmark"><code class="docutils literal notranslate"><span class="pre">Benchmark</span></code></a></li>
+</ul>
+</li>
 </ul>
 </li>
 </ul>
@@ -68,9 +73,9 @@
         <div class="rst-content">
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
-          <li><a href="modules.html">bex</a> &raquo;</li>
-      <li>bex package</li>
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="modules.html">bex</a></li>
+      <li class="breadcrumb-item active">bex package</li>
       <li class="wy-breadcrumbs-aside">
             <a href="_sources/bex.rst.txt" rel="nofollow"> View page source</a>
       </li>
@@ -87,11 +92,49 @@
 <div class="toctree-wrapper compound">
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="bex.explainers.html">bex.explainers package</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="bex.explainers.html#module-bex.explainers">Module contents</a></li>
+<li class="toctree-l2"><a class="reference internal" href="bex.explainers.html#module-bex.explainers">Module contents</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="bex.explainers.html#bex.explainers.Dice"><code class="docutils literal notranslate"><span class="pre">Dice</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="bex.explainers.html#bex.explainers.Dice.explain_batch"><code class="docutils literal notranslate"><span class="pre">Dice.explain_batch()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="bex.explainers.html#bex.explainers.Dive"><code class="docutils literal notranslate"><span class="pre">Dive</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="bex.explainers.html#bex.explainers.Dive.explain_batch"><code class="docutils literal notranslate"><span class="pre">Dive.explain_batch()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="bex.explainers.html#bex.explainers.ExplainerBase"><code class="docutils literal notranslate"><span class="pre">ExplainerBase</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="bex.explainers.html#bex.explainers.ExplainerBase.explain_batch"><code class="docutils literal notranslate"><span class="pre">ExplainerBase.explain_batch()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="bex.explainers.html#bex.explainers.GrowingSpheres"><code class="docutils literal notranslate"><span class="pre">GrowingSpheres</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="bex.explainers.html#bex.explainers.GrowingSpheres.explain_batch"><code class="docutils literal notranslate"><span class="pre">GrowingSpheres.explain_batch()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="bex.explainers.html#bex.explainers.LCF"><code class="docutils literal notranslate"><span class="pre">LCF</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="bex.explainers.html#bex.explainers.LCF.explain_batch"><code class="docutils literal notranslate"><span class="pre">LCF.explain_batch()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="bex.explainers.html#bex.explainers.Stylex"><code class="docutils literal notranslate"><span class="pre">Stylex</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="bex.explainers.html#bex.explainers.Stylex.explain_batch"><code class="docutils literal notranslate"><span class="pre">Stylex.explain_batch()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="bex.explainers.html#bex.explainers.Xgem"><code class="docutils literal notranslate"><span class="pre">Xgem</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="bex.explainers.html#bex.explainers.Xgem.explain_batch"><code class="docutils literal notranslate"><span class="pre">Xgem.explain_batch()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="bex.loggers.html">bex.loggers package</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="bex.loggers.html#module-bex.loggers">Module contents</a></li>
+<li class="toctree-l2"><a class="reference internal" href="bex.loggers.html#module-bex.loggers">Module contents</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="bex.loggers.html#bex.loggers.BasicLogger"><code class="docutils literal notranslate"><span class="pre">BasicLogger</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="bex.loggers.html#bex.loggers.BasicLogger.accumulate"><code class="docutils literal notranslate"><span class="pre">BasicLogger.accumulate()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="bex.loggers.html#bex.loggers.BasicLogger.create_cf_figure"><code class="docutils literal notranslate"><span class="pre">BasicLogger.create_cf_figure()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="bex.loggers.html#bex.loggers.BasicLogger.log"><code class="docutils literal notranslate"><span class="pre">BasicLogger.log()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
 </ul>
 </li>
 </ul>
@@ -101,37 +144,36 @@
 <span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-bex" title="Permalink to this heading"></a></h2>
 <dl class="py class">
 <dt class="sig sig-object py" id="bex.Benchmark">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">bex.</span></span><span class="sig-name descname"><span class="pre">Benchmark</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">batch_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">12</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_workers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_samples</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">800</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">corr_level</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.95</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_corr</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">seed</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#bex.Benchmark" title="Permalink to this definition"></a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">bex.</span></span><span class="sig-name descname"><span class="pre">Benchmark</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">batch_size=12</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_workers=8</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_samples=800</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">corr_level=0.95</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_corr=10</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">seed=0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger=&lt;class</span> <span class="pre">'bex.loggers.basic.BasicLogger'&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data_path=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">download=True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#bex.Benchmark" title="Permalink to this definition"></a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
 <p>Main class to evaluate counterfactual explanations methods</p>
-<p>Bex benchmark for evaluating explainability methods. For a list of supported methods see <code class="xref py py-mod docutils literal notranslate"><span class="pre">Bex.explainers</span></code>
-The benchmark also supports custom methods, for an example on how to create and evaluate your own methods see <code class="xref py py-class docutils literal notranslate"><span class="pre">ExplainerBase</span></code></p>
+<p>Bex benchmark for evaluating explainability methods. For a list of supported methods see <a class="reference internal" href="bex.explainers.html#module-bex.explainers" title="bex.explainers"><code class="xref py py-mod docutils literal notranslate"><span class="pre">bex.explainers</span></code></a>
+The benchmark also supports custom methods, for an example on how to create and evaluate your own methods see <a class="reference internal" href="bex.explainers.html#bex.explainers.ExplainerBase" title="bex.explainers.ExplainerBase"><code class="xref py py-class docutils literal notranslate"><span class="pre">ExplainerBase</span></code></a></p>
 <dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>batch_size</strong> (<code class="docutils literal notranslate"><span class="pre">int</span></code>, optional) – dataloader batch size (default: 12)</p></li>
 <li><p><strong>num_workers</strong> (<code class="docutils literal notranslate"><span class="pre">int</span></code>, optional) – dataloader number of workers (default: 2)</p></li>
-<li><p><strong>n_samples</strong> (<code class="docutils literal notranslate"><span class="pre">int</span></code>, optional) – total number of samples to explain (default: 800)</p></li>
+<li><p><strong>n_samples</strong> (<code class="docutils literal notranslate"><span class="pre">int</span></code>, optional) – number of samples to explain per confidence level (default: 100)</p></li>
 <li><p><strong>corr_level</strong> (<code class="docutils literal notranslate"><span class="pre">float</span></code>, optional) – <cite>0.50</cite> or <cite>0.95</cite> correlation level of the spuriously correlated attributes <span class="math notranslate nohighlight">\(z_{\text{corr}}\)</span> (default: 0.95)</p></li>
 <li><p><strong>n_corr</strong> (<code class="docutils literal notranslate"><span class="pre">int</span></code>, optional) – <cite>6</cite> or <cite>10</cite> number of correlated attributes (default: 10)</p></li>
 <li><p><strong>seed</strong> – (<code class="docutils literal notranslate"><span class="pre">int</span></code>, optional) numpy and torch random seed (default: 0)</p></li>
+<li><p><strong>data_path</strong> (<code class="docutils literal notranslate"><span class="pre">str</span></code>, optional) path to download the datasets and models, defaults to (~/.bex) – </p></li>
+<li><p><strong>download</strong> (<code class="docutils literal notranslate"><span class="pre">bool</span></code>, optional) – True)</p></li>
+<li><p><strong>logger</strong> (<a class="reference internal" href="bex.loggers.html#bex.loggers.BasicLogger" title="bex.loggers.BasicLogger"><code class="xref py py-class docutils literal notranslate"><span class="pre">BasicLogger</span></code></a>, optional) – logger to log results and examples, if <cite>None</cite> nothing will be logged (default: <a class="reference internal" href="bex.loggers.html#bex.loggers.BasicLogger" title="bex.loggers.BasicLogger"><code class="xref py py-class docutils literal notranslate"><span class="pre">BasicLogger</span></code></a>)</p></li>
 </ul>
 </dd>
 </dl>
 <dl class="py method">
 <dt class="sig sig-object py" id="bex.Benchmark.run">
-<span class="sig-name descname"><span class="pre">run</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">explainer</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#bex.Benchmark.run" title="Permalink to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">run</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">explainer</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#bex.Benchmark.run" title="Permalink to this definition"></a></dt>
 <dd><p>Evaluates an explainer on the Bex benchmark</p>
 <dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>explainer</strong> (<code class="docutils literal notranslate"><span class="pre">string</span></code>) – explainability method to be evaluated. Must be one of <code class="xref py py-class docutils literal notranslate"><span class="pre">'stylex'</span></code>,
-<code class="xref py py-class docutils literal notranslate"><span class="pre">'dive'</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">'xgem'</span></code>,
-<code class="xref py py-class docutils literal notranslate"><span class="pre">'lcf'</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">'dice'</span></code>,
-<code class="xref py py-class docutils literal notranslate"><span class="pre">'gs'</span></code></p></li>
-<li><p><strong>logger</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">BasicLogger</span></code>, optional) – logger to log results and examples, if <cite>None</cite> nothing will be logged (default: <cite>None</cite>)</p></li>
+<li><p><strong>explainer</strong> (<code class="docutils literal notranslate"><span class="pre">string</span></code>) – explainability method to be evaluated</p></li>
 <li><p><strong>output_path</strong> (<code class="docutils literal notranslate"><span class="pre">string</span></code>, optional) – directory to store results and examples if <cite>logger</cite> is not <cite>None</cite> (default: output/<cite>datetime.now()</cite>)</p></li>
-<li><p><strong>**kwargs</strong> – keyword arguments for the explainer (see <code class="xref py py-mod docutils literal notranslate"><span class="pre">Bex.explainers</span></code>)</p></li>
+<li><p><strong>**kwargs</strong> – keyword arguments for the explainer <a class="reference internal" href="bex.explainers.html#module-bex.explainers" title="bex.explainers"><code class="xref py py-mod docutils literal notranslate"><span class="pre">bex.explainers</span></code></a></p></li>
 </ul>
 </dd>
 </dl>
@@ -147,7 +189,7 @@ The benchmark also supports custom methods, for an example on how to create and 
 <span class="sig-name descname"><span class="pre">runs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">exp_list</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#bex.Benchmark.runs" title="Permalink to this definition"></a></dt>
 <dd><p>Evaluates a list of explainers on the Bex benchmark</p>
 <dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>exp_list</strong> (<code class="docutils literal notranslate"><span class="pre">List[Dict]</span></code>) – list of dictionaries containing explainers and its parameters</p></li>
 <li><p><strong>**kwargs</strong> – keyword arguments for <a class="reference internal" href="#bex.Benchmark.run" title="bex.Benchmark.run"><code class="xref py py-meth docutils literal notranslate"><span class="pre">run()</span></code></a></p></li>
@@ -157,7 +199,7 @@ The benchmark also supports custom methods, for an example on how to create and 
 <p class="rubric">Example</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">bn</span> <span class="o">=</span> <span class="n">bex</span><span class="o">.</span><span class="n">Benchmark</span><span class="p">()</span>
 <span class="c1"># run dive and dice</span>
-<span class="n">to_run</span> <span class="o">=</span> <span class="p">[{</span><span class="s2">&quot;explainer&quot;</span><span class="p">:</span> <span class="s2">&quot;dive&quot;</span><span class="p">,</span> <span class="s2">&quot;lr&quot;</span><span class="p">:</span> <span class="mf">0.1</span><span class="p">},</span> <span class="p">{</span><span class="s2">&quot;explainer&quot;</span><span class="p">:</span> <span class="s2">&quot;dice&quot;</span><span class="p">,</span> <span class="s2">&quot;lr&quot;</span><span class="p">:</span> <span class="mf">0.01</span><span class="p">}]</span>
+<span class="n">to_run</span> <span class="o">=</span> <span class="p">[{</span><span class="s2">&quot;explainer&quot;</span><span class="p">:</span> <span class="s2">&quot;dive&quot;</span><span class="p">:</span> <span class="s2">&quot;lr&quot;</span><span class="p">:</span> <span class="mf">0.1</span><span class="p">},</span> <span class="p">{</span><span class="s2">&quot;explainer&quot;</span><span class="p">:</span> <span class="s2">&quot;dice&quot;</span><span class="p">:</span> <span class="s2">&quot;lr&quot;</span><span class="p">:</span> <span class="mf">0.01</span><span class="p">}]</span>
 <span class="n">bn</span><span class="o">.</span><span class="n">runs</span><span class="p">(</span><span class="n">to_run</span><span class="p">)</span>
 </pre></div>
 </div>
@@ -168,10 +210,10 @@ The benchmark also supports custom methods, for an example on how to create and 
 <span class="sig-name descname"><span class="pre">summarize</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#bex.Benchmark.summarize" title="Permalink to this definition"></a></dt>
 <dd><p>Summarize the metrics obtained by every explainer ran since <a class="reference internal" href="#bex.Benchmark" title="bex.Benchmark"><code class="xref py py-class docutils literal notranslate"><span class="pre">Benchmark</span></code></a> was instantiated</p>
 <dl class="field-list simple">
-<dt class="field-odd">Returns</dt>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
 <dd class="field-odd"><p>pandas DataFrame with the results obtained</p>
 </dd>
-<dt class="field-even">Return type</dt>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
 <dd class="field-even"><p>(<code class="docutils literal notranslate"><span class="pre">pandas.DataFrame</span></code>)</p>
 </dd>
 </dl>

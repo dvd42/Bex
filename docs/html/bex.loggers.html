@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html class="writer-html5" lang="en" >
 <head>
-  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>bex.loggers package &mdash; BeX 0.1 documentation</title>
+  <title>bex.loggers package &mdash; BeX 0.5 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
   <!--[if lt IE 9]>
@@ -12,10 +12,8 @@
   <![endif]-->
   
         <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
-        <script src="_static/jquery.js"></script>
-        <script src="_static/underscore.js"></script>
-        <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
         <script src="_static/doctools.js"></script>
+        <script src="_static/sphinx_highlight.js"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
@@ -27,11 +25,15 @@
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
         <div class="wy-side-nav-search" >
-            <a href="index.html" class="icon icon-home"> BeX
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            BeX
           </a>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
-    <input type="text" name="q" placeholder="Search docs" />
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
     <input type="hidden" name="check_keywords" value="yes" />
     <input type="hidden" name="area" value="default" />
   </form>
@@ -66,10 +68,10 @@
         <div class="rst-content">
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
-          <li><a href="modules.html">bex</a> &raquo;</li>
-          <li><a href="bex.html">bex package</a> &raquo;</li>
-      <li>bex.loggers package</li>
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="modules.html">bex</a></li>
+          <li class="breadcrumb-item"><a href="bex.html">bex package</a></li>
+      <li class="breadcrumb-item active">bex.loggers package</li>
       <li class="wy-breadcrumbs-aside">
             <a href="_sources/bex.loggers.rst.txt" rel="nofollow"> View page source</a>
       </li>
@@ -89,7 +91,7 @@
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
 <p>Basic logger class</p>
 <dl class="field-list simple">
-<dt class="field-odd">Variables</dt>
+<dt class="field-odd">Variables<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>metrics</strong> – dictionary containing the metrics logged by Bex</p>
 </dd>
 </dl>
@@ -97,10 +99,10 @@
 the run configuration and some images of successful counterfactuals. It mostly serves as a
 base class for custom loggers but it is fully functional.</p>
 <dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>attributes</strong> (<code class="docutils literal notranslate"><span class="pre">Dict</span></code>) – dictionary containing the run config (provided internally)</p></li>
-<li><p><strong>path</strong> – (<code class="docutils literal notranslate"><span class="pre">string</span></code>): output path for the logger (see <code class="xref py py-meth docutils literal notranslate"><span class="pre">run()</span></code>)</p></li>
+<li><p><strong>attributes</strong> (<code class="docutils literal notranslate"><span class="pre">Dict</span></code>) – dictionary containing the run config</p></li>
+<li><p><strong>path</strong> – (<code class="docutils literal notranslate"><span class="pre">string</span></code>): output path for the logger (see <a class="reference internal" href="bex.html#bex.Benchmark.run" title="bex.Benchmark.run"><code class="xref py py-meth docutils literal notranslate"><span class="pre">run()</span></code></a>)</p></li>
 <li><p><strong>n_batches</strong> – (<code class="docutils literal notranslate"><span class="pre">int</span></code>, optional): max number of image batches to log</p></li>
 </ul>
 </dd>
@@ -132,10 +134,11 @@ override the <code class="docutils literal notranslate"><span class="pre">accumu
         <span class="bp">self</span><span class="o">.</span><span class="n">metrics</span> <span class="o">=</span> <span class="p">{</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">k</span><span class="si">}</span><span class="s2">_avg&quot;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">metrics</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
         <span class="n">wandb</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">metrics</span><span class="p">)</span>
 
-        <span class="c1"># create a figure with all the images and store it in self._figure</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">prepare_images_to_log</span><span class="p">()</span>
+        <span class="c1"># create matplotlib figure with the counterfactuals generated</span>
+        <span class="n">fig</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_cf_figure</span><span class="p">()</span>
 
-        <span class="n">wandb</span><span class="o">.</span><span class="n">log</span><span class="p">({</span><span class="s2">&quot;Counterfactuals&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_figure</span><span class="p">})</span>
+        <span class="n">wandb</span><span class="o">.</span><span class="n">log</span><span class="p">({</span><span class="s2">&quot;Counterfactuals&quot;</span><span class="p">:</span> <span class="n">fig</span><span class="p">})</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
 
 <span class="n">bn</span> <span class="o">=</span> <span class="n">Benchmark</span><span class="p">()</span>
 <span class="n">bn</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="s2">&quot;dive&quot;</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="n">WandbLogger</span><span class="p">)</span>
@@ -146,7 +149,7 @@ override the <code class="docutils literal notranslate"><span class="pre">accumu
 <span class="sig-name descname"><span class="pre">accumulate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">images</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#bex.loggers.BasicLogger.accumulate" title="Permalink to this definition"></a></dt>
 <dd><p>Updates the metric and image history</p>
 <dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>data</strong> (<code class="docutils literal notranslate"><span class="pre">Dict</span></code>) – dictionary containing the metrics compute by Bex</p></li>
 <li><p><strong>images</strong> (<code class="docutils literal notranslate"><span class="pre">Dict</span></code>) – dictionary containing tensor images from a given batch and their orthogonal counterfactuals</p></li>
@@ -156,19 +159,19 @@ override the <code class="docutils literal notranslate"><span class="pre">accumu
 </dd></dl>
 
 <dl class="py method">
+<dt class="sig sig-object py" id="bex.loggers.BasicLogger.create_cf_figure">
+<span class="sig-name descname"><span class="pre">create_cf_figure</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#bex.loggers.BasicLogger.create_cf_figure" title="Permalink to this definition"></a></dt>
+<dd><p>Helper function to build a figure with the accumulated images. Must be called
+before <a class="reference internal" href="#bex.loggers.BasicLogger.log" title="bex.loggers.BasicLogger.log"><code class="xref py py-meth docutils literal notranslate"><span class="pre">log()</span></code></a></p>
+</dd></dl>
+
+<dl class="py method">
 <dt class="sig sig-object py" id="bex.loggers.BasicLogger.log">
 <span class="sig-name descname"><span class="pre">log</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#bex.loggers.BasicLogger.log" title="Permalink to this definition"></a></dt>
 <dd><p>Log the average for each of the metrics computed by Bex along with a figure with
 some of the orthogonal counterfactuals produced.</p>
-<p>The images will the be logged to output_path (see <code class="xref py py-meth docutils literal notranslate"><span class="pre">run()</span></code>) as a
+<p>The images will the be logged to output_path (see <a class="reference internal" href="bex.html#bex.Benchmark.run" title="bex.Benchmark.run"><code class="xref py py-meth docutils literal notranslate"><span class="pre">run()</span></code></a>) as a
 <cite>.png</cite> file while the metrics along with the run config will be logged as a <cite>.csv</cite> file</p>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="bex.loggers.BasicLogger.prepare_images_to_log">
-<span class="sig-name descname"><span class="pre">prepare_images_to_log</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#bex.loggers.BasicLogger.prepare_images_to_log" title="Permalink to this definition"></a></dt>
-<dd><p>Helper function to build a figure with the accumulated images. Must be called
-before <code class="xref py py-meth docutils literal notranslate"><span class="pre">log()</span></code></p>
 </dd></dl>
 
 </dd></dl>
