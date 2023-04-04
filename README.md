@@ -1,13 +1,4 @@
-<table>
-  <tr>
-    <td>
-      <img src="images/cover.svg" alt="framework" width="50%" />
-    </td>
-    <td>
-      <img src="images/samples.png" alt="samples" width="50%" />
-    </td>
-  </tr>
-</table>
+<img src="images/cover.pdf" alt="framework"/>
 
 # A Benchmark For Counterfactual Explainers
 
@@ -22,9 +13,13 @@ Code repository for the Bex explainability benchmark. Models and datasets that c
 automatically downloaded when the benchmark is ran.
 
 
+The dataset used for the benchmark is a modified version of [Synbols](https://arxiv.org/abs/2009.06415) that contains black and white characters with various attributest that define them (e.g., font, rotaion, scale, etc)
+
+<img src="images/samples.png" alt="samples"/>
+
 ## Installation
 
-The recommended way to install Bex is via [PyPI](https://pypi.org/project/bex/).
+The recommended way to install Bex is via [PyPI](https://pypi.org/project/bex/)
 
 ```bash
 pip install bex
@@ -33,7 +28,7 @@ pip install bex
 
 ## Usage
 
-The documentation for the benchmark can be found [here](dvd42.github.io/Bex)
+For more information about the usage check out the [Documentation](https://dvd42.github.io/Bex)
 We provide a set of counterfactuals explainers already implemented in the benchmark:
 
 1. [Beyond Trivial Counterfactual Explanations with Diverse Valuable Explanations](https://arxiv.org/abs/2103.10226) (DiVE)
