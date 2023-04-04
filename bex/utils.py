@@ -1,5 +1,4 @@
 from tqdm import tqdm
-import sys
 import os
 import requests
 import numpy as np

@@ -32,7 +32,7 @@ class Benchmark:
         logger (:py:class:`BasicLogger <bex.loggers.BasicLogger>`, optional): logger to log results and examples, if `None` nothing will be logged (default: :py:class:`BasicLogger <bex.loggers.BasicLogger>`)
     """
 
-    def __init__(self, batch_size=12, num_workers=8, n_samples=800, corr_level=0.95, n_corr=10, seed=0, logger=BasicLogger, data_path=None, download=True):
+    def __init__(self, batch_size=12, num_workers=8, n_samples=100, corr_level=0.95, n_corr=10, seed=0, logger=BasicLogger, data_path=None, download=True):
 
         self.data_path = data_path
         if data_path is None:

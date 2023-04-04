@@ -1,13 +1,10 @@
-from typing import Iterable
 import os
 import logging
 from datetime import datetime
 import numpy as np
-import torch
 import pandas as pd
 import matplotlib.pyplot as plt
 from torchvision.utils import make_grid
-import cv2
 
 
 class BasicLogger:
@@ -125,8 +122,8 @@ class BasicLogger:
             b = samples.size(0)
             grid = make_grid(samples, nrow=b).permute(1, 2, 0).numpy()
             cfs_grid = make_grid(cfs, nrow=b).permute(1, 2, 0).numpy()
-            cfs_grid = cv2.cvtColor(cfs_grid, cv2.COLOR_RGB2GRAY)
-            grid = cv2.cvtColor(grid, cv2.COLOR_RGB2GRAY)
+            grid = grid.mean(-1)
+            cfs_grid = cfs_grid.mean(-1)
             ax[i, 0].imshow(grid, cmap="gray")
             ax[i, 0].set_axis_off()
             ax[i, 0].set_title("Original", fontdict={"fontsize": "small"})

@@ -7,9 +7,7 @@ from torchvision import transforms as tt
 import torch
 import h5py
 import multiprocessing
-import sys
 import copy
-import requests
 
 from .utils import download_url, get_data_path_or_download
 

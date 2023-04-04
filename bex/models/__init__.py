@@ -1,7 +1,7 @@
 import os
 import copy
 from .generator import Generator
-from .classifier import ResNet, MLP
+from .classifier import ResNet
 from .encoder import Encoder
 from .configs import default_configs
 from ..datasets import get_data_path_or_download
