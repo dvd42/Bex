@@ -1,4 +1,13 @@
-<img src="images/cover.svg" alt="Main figure">
+<table>
+  <tr>
+    <td>
+      <img src="images/cover.svg" alt="framework" width="50%" />
+    </td>
+    <td>
+      <img src="images/samples.png" alt="samples" width="50%" />
+    </td>
+  </tr>
+</table>
 
 # A Benchmark For Counterfactual Explainers
 
@@ -23,6 +32,8 @@ pip install bex
 
 
 ## Usage
+
+The documentation for the benchmark can be found [here](dvd42.github.io/Bex)
 We provide a set of counterfactuals explainers already implemented in the benchmark:
 
 1. [Beyond Trivial Counterfactual Explanations with Diverse Valuable Explanations](https://arxiv.org/abs/2103.10226) (DiVE)
