@@ -2,14 +2,15 @@
 
 # A Benchmark For Counterfactual Explainers
 
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) 
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
->Explainability methods have been widely used to interpret and understand the decisions made by classifiers in order to facilitate their adoption in high-stakes applications across various domains within the industry. Counterfactual explanation methods aim to improve our understanding of a model by perturbing samples in a way that would alter its response in an unexpected manner. This information is helpful for users and for machine learning practitioners to understand and improve their models. Given the value provided by counterfactual explanations, there is a growing interest in the research community to investigate and propose new methods. However, we identify two issues that could hinder the progress in this field. (1) With each  method, the authors propose a different evaluation metric to compare with previous literature, thus there is no consensus on what a good counterfactual explanation method is. (2) Such comparisons are usually performed with datasets like CelebA, where images are annotated with attributes that do not fully describe them and with subjective attributes such as "Attractive". In this work, we address these problems by proposing a benchmark with a principled metric to evaluate and compare different counterfactual explanation methods. The benchmark is based on a synthetic dataset where images are fully described by their annotated attributes. As a result, we are able to perform a fair comparison of multiple explainability methods in the recent literature, obtaining insights about their performance. We will make the benchmark public for the benefit of the research community.
+> Explainability methods have been widely used to provide insight into the decisions made by statistical models, thus facilitating their adoption in various domains within the industry. Counterfactual explanation methods aim to improve our understanding of a model by perturbing samples in a way that would alter its response in an unexpected manner. This information is helpful for users and for machine learning practitioners to understand and improve their models. Given the value provided by counterfactual explanations, there is a growing interest in the research community to investigate and propose new methods. However, we identify two issues that could hinder the progress in this field. (1) Existing metrics do not accurately reflect the value of an explainability method for the users. (2) Comparisons between methods are usually performed with datasets like CelebA, where images are annotated with attributes that do not fully describe them and with subjective attributes such as "Attractive". In this work, we address these problems by proposing an evaluation method with a principled metric to evaluate and compare different counterfactual explanation methods. The evaluation is based on a synthetic dataset where images are fully described by their annotated attributes. As a result, we are able to perform a fair comparison of multiple explainability methods in the recent literature, obtaining insights about their performance.
 
+[[paper]](https://openreview.net/pdf?id=RYeRNwRjNE)
 
-## Description 
+## Description
 
-Code repository for the Bex explainability benchmark. Models and datasets that comprise the benchmark can be found [here](https://zenodo.org/record/6616598). They are 
+Code repository for the Bex explainability benchmark. Models and datasets that comprise the benchmark can be found [here](https://zenodo.org/record/6616598). They are
 automatically downloaded when the benchmark is ran.
 
 
@@ -45,8 +46,8 @@ The benchmark includes different setting by modifying the number of correlated
 `n_corr` attributes and their level of correlation `corr_level`. Right now there are 4 settings available:
 
 * `n_corr=10`, `corr_level=0.95` (default)
-* `n_corr=6`, `corr_level=0.95` 
-* `n_corr=10`, `corr_level=0.5` 
+* `n_corr=6`, `corr_level=0.95`
+* `n_corr=10`, `corr_level=0.5`
 * `n_corr=6`, `corr_level=0.5`
 
 
@@ -78,8 +79,8 @@ class DummyExplainer(bex.explainers.ExplainerBase):
         self.num_explanations = num_explanations
 
     # This function describes the behaviour of the custom explainer for a given batch
-    def explain_batch(self, latents: torch.Tensor, logits: torch.Tensor, 
-                      images: torch.Tensor, classifier: torch.nn.Module, 
+    def explain_batch(self, latents: torch.Tensor, logits: torch.Tensor,
+                      images: torch.Tensor, classifier: torch.nn.Module,
                       generator: Callable[[torch.Tensor], torch.Tensor]) -> torch.Tensor:
 
         b, c = latents.size()
@@ -100,9 +101,9 @@ We provide a basic logger to log results and image samples; it is activated by d
 
 ```python
 bn = bex.Benchmark(n_corr=6, corr_level=0.95, logger=None)
-bn.run("stylex") # nothing will be logged 
+bn.run("stylex") # nothing will be logged
 
-# a pandas dataframe holding the results of all .run() calls can always be obtained by calling 
+# a pandas dataframe holding the results of all .run() calls can always be obtained by calling
 bn.summarize()
 ```
 
@@ -116,7 +117,7 @@ class WandbLogger(BasicLogger):
     '''
     Args:
         attributes (``Dict``): dictionary containing the run config
-        path: (``string``): output path for the logger 
+        path: (``string``): output path for the logger
         n_batches: (``int``, optional): max number of image batches to log
 
     '''
@@ -146,15 +147,36 @@ class WandbLogger(BasicLogger):
         fig = self.create_cf_figure()
 
         wandb.log({"Counterfactuals": fig})
-        
+
         plt.close()
 
 bn = bex.Benchmark(n_corr=6, corr_level=0.95, logger=WandbLogger)
-bn.run("IS") # results will be logged to weights and biases 
+bn.run("IS") # results will be logged to weights and biases
 
 print(bn.summarize()) # results stored in memory
 ```
 
-## Contact 
+## Citation
+
+If you find this work useful, please consider citing the following paper:
+
+Diego Velazquez, Pau Rodriguez, Alexandre Lacoste, Issam H. Laradji, Xavier Roca, and Jordi Gonzàlez. 2023. *Explaining Visual Counterfactual Explainers*. Transactions on Machine Learning Research. ISSN: 2835-8856.
+
+
+```bibtex
+@article{
+velazquez2023explaining,
+title={Explaining Visual Counterfactual Explainers},
+author={Diego Velazquez and Pau Rodriguez and Alexandre Lacoste and Issam H. Laradji and Xavier Roca and Jordi Gonz{\`a}lez},
+journal={Transactions on Machine Learning Research},
+issn={2835-8856},
+year={2023},
+url={https://openreview.net/forum?id=RYeRNwRjNE},
+note={Reproducibility Certification}
+}
+```
+
+
+## Contact
 
 For any bug or feature requests, please create an issue.
