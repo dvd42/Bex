@@ -80,7 +80,7 @@ class Dice(ExplainerBase):
         # self.yloss_type = yloss_type
         # self.diversity_loss_type = diversity_loss_type
 
-        mads = self.mads.cuda()
+        mads = self.mads.to(latents.device)
         inverse_mads = 1 / (mads + 1e-3)
         self.feature_weights_list = inverse_mads
 
@@ -90,23 +90,10 @@ class Dice(ExplainerBase):
         self.target_cf_class = 1 - logits.max(1)[1]
         self.target_cf_class = self.target_cf_class[:, None].repeat(1, self.num_explanations).view(-1)
 
-        # self.min_iter = min_iter
-        # self.max_iter = max_iter
-        # self.loss_diff_thres = loss_diff_thres
-        # no. of iterations to wait to confirm that loss has converged
-
         if self.stopping_threshold != 0.5:
             self.stopping_threshold = torch.zeros_like(self.target_cf_class).fill_(0.75)
             self.stopping_threshold[self.target_cf_class == 0] = 0.25
-        # if self.target_cf_class == 0 and self.stopping_threshold > 0.5:
-        #     self.stopping_threshold = 0.25
-        # elif self.target_cf_class == 1 and self.stopping_threshold < 0.5:
-        #     self.stopping_threshold = 0.75
 
-        # running optimization steps
-        # start_time = time.time()
-
-        # looping the find CFs depending on whether its random initialization or not
         iterations = 0
         loss_diff = float("inf")
         prev_loss = 0

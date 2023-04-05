@@ -70,7 +70,7 @@ class ExplainerBase:
             print("Data not found in the hdf5 cache")
 
 
-    def _write_cache(self, loader, encoder, generator, classifier, prefix):
+    def _write_cache(self, loader, encoder, generator, classifier, prefix, device):
 
         """Loops through the data and stores latents """
 
@@ -78,9 +78,9 @@ class ExplainerBase:
         mus = []
         for idx, x, y, categorical_att, continuous_att in tqdm(loader):
             with torch.no_grad():
-                x = x.cuda()
-                categorical_att = categorical_att.cuda()
-                continuous_att = continuous_att.cuda()
+                x = x.to(device)
+                categorical_att = categorical_att.to(device)
+                continuous_att = continuous_att.to(device)
                 z = encoder(categorical_att, continuous_att)
                 mus.append(z.cpu().numpy())
 
@@ -100,12 +100,12 @@ class ExplainerBase:
 
     def _get_latents(self, idx):
 
-        return self.mus[idx].cuda()
+        return self.mus[idx]
 
 
     def _get_logits(self, idx):
 
-        return self.logits[idx].cuda()
+        return self.logits[idx]
 
 
     def _cleanup(self):

@@ -19,6 +19,7 @@ class InformedSearch(ExplainerBase):
         mean = self.latent_mean[3:6]
         std = self.latent_std[3:6]
         b, c = latents.size()
+        device = latents.device
 
         targets = 1 - logits.argmax(1)
         n_corr = len(self.correlated_att) // 2
@@ -30,7 +31,7 @@ class InformedSearch(ExplainerBase):
         for i, t in enumerate(targets):
             t = int(t)
             font = np.random.choice(correlation[t], self.num_explanations, replace=True)
-            z[i, :, 3:6] = (weights_font[font] - mean.cuda()) / std.cuda()
+            z[i, :, 3:6] = (weights_font[font] - mean.to(device)) / std.to(device)
 
         z_perturbed = z
 

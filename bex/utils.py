@@ -105,7 +105,7 @@ def get_successful_cf(z_perturbed, z, perturbed_logits, logits, char_embed, font
 
 def normalize_embeddings(embedding, mean, std):
 
-    embedding = (embedding - mean.to(embedding.device)) / std.to(embedding.device)
+    embedding = (embedding - mean) / std
 
     return embedding
 

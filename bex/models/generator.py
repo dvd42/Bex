@@ -60,10 +60,10 @@ class Generator(torch.nn.Module):
         self.output_h = self.h // self.ratio
         self.channels_width = self.exp_dict["backbone"]["channels_width"]
 
-        self.model.cuda()
+        # self.model.cuda()
         self.discriminator = Discriminator(ratio=self.ratio, width=self.channels_width)
         self.discriminator.apply(weights_init)
-        self.discriminator.cuda()
+        # self.discriminator.cuda()
         self.discriminator_loss = DiscriminatorLoss(self.discriminator)
 
         if self.ngpu > 1:
@@ -159,13 +159,13 @@ class Generator(torch.nn.Module):
         return ret
 
 
-    def val_on_batch(self, epoch, batch_idx, batch, vis_flag):
+    def val_on_batch(self, batch, device):
 
         x, y, categorical_att, continuous_att = batch
-        x = x.cuda(non_blocking=True)
-        y = y.cuda(non_blocking=True)
-        categorical_att = categorical_att.cuda()
-        continuous_att = continuous_att.cuda()
+        x = x.to(device, non_blocking=True)
+        y = y.to(device, non_blocking=True)
+        categorical_att = categorical_att.to(device, non_blocking=True)
+        continuous_att = continuous_att.to(device, non_blocking=True)
         b = x.size(0)
 
         outputs = {}

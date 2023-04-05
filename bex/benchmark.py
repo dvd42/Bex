@@ -50,8 +50,6 @@ class Benchmark:
         self.results = []
         self.current_config = {}
 
-        self.device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
-
         dataset = copy.deepcopy(default_configs["dataset"][self.dataset_name])
         dataset["name"] += f"_corr{self.corr_level}_n_clusters{self.n_corr}.h5py"
         print("Loading data...")
@@ -73,20 +71,23 @@ class Benchmark:
         self.val_loader = self._get_loader(self.val_dataset, batch_size=self.batch_size)
 
 
-    def _set_config(self, explainer, output_path):
+    def _set_config(self, explainer, output_path, device):
+
         self.current_config["explainer_name"] = explainer if isinstance(explainer, str) else explainer.__name__
         self.current_config["output_path"] = output_path
+        self.current_config["device"] = device
 
 
     def _setup(self, explainer, **kwargs):
 
         np.random.seed(self.seed)
         torch.manual_seed(self.seed)
+        device = self.current_config["device"]
         explainer_name = self.current_config["explainer_name"]
         output_path = self.current_config["output_path"]
         explainer = get_explainer(explainer, self.encoder, self.generator, self.val_loader, **kwargs)
         explainer.data_path = self.data_path
-        self._prepare_cache(explainer)
+        self._prepare_cache(explainer, device=device)
         att = {k: v for k, v in explainer.__dict__.items() if isinstance(v, (str, int, float))}
         if "cache" in att:
             att.pop("cache")
@@ -125,7 +126,7 @@ class Benchmark:
             self.val_loader.dataset.indices = indices
 
 
-    def _prepare_cache(self, explainer):
+    def _prepare_cache(self, explainer, device):
 
         digest = "_".join([self.dataset_name, self.classifier_name, f"corr{self.corr_level}_n_clusters{self.n_corr}", "cache.hdf"])
         cache_dir = os.path.join(self.data_path, "cache")
@@ -134,22 +135,22 @@ class Benchmark:
 
         if not os.path.isfile(explainer.digest):
             print(f"Caching latents to {explainer.digest}")
-            explainer._write_cache(self.train_loader, self.encoder, self.generator.model.decode, self.classifier.model, "train")
-            explainer._write_cache(self.val_loader, self.encoder, self.generator.model.decode, self.classifier.model, "val")
+            explainer._write_cache(self.train_loader, self.encoder, self.generator.model.decode, self.classifier.model, "train", device)
+            explainer._write_cache(self.val_loader, self.encoder, self.generator.model.decode, self.classifier.model, "val", device)
 
         explainer._read_cache()
 
 
-    def _prepare_batch(self, batch, explainer):
+    def _prepare_batch(self, batch, explainer, device):
 
         idx, images, labels, categorical_att, continuous_att = batch
-        x = images.to(self.device)
-        y = labels.to(self.device)
-        categorical_att = categorical_att.to(self.device)
-        continuous_att = continuous_att.to(self.device)
+        x = images.to(device)
+        y = labels.to(device)
+        categorical_att = categorical_att.to(device)
+        continuous_att = continuous_att.to(device)
 
-        latents = explainer._get_latents(idx)
-        logits = explainer._get_logits(idx)
+        latents = explainer._get_latents(idx).to(device)
+        logits = explainer._get_logits(idx).to(device)
 
         return latents, logits, x, y, categorical_att, continuous_att
 
@@ -175,10 +176,13 @@ class Benchmark:
         return _generator
 
 
-    def _cleanup(self, explainer):
+    def _cleanup(self, explainer, logger):
 
         explainer._cleanup()
         self.current_config = {}
+
+        if logger is not None:
+            del logger
 
 
     def _accumulate_log(self, logger, metrics, x, decoded, idxs):
@@ -219,13 +223,14 @@ class Benchmark:
             self.run(**exp, **kwargs)
 
 
-    def run(self, explainer, output_path=None, **kwargs):
+    def run(self, explainer, output_path=None, device='', **kwargs):
 
         """Evaluates an explainer on the Bex benchmark
 
         Args:
             explainer (``string``): explainability method to be evaluated
             output_path (``string``, optional): directory to store results and examples if `logger` is not `None` (default: output/`datetime.now()`)
+            device (``string``, optional): device on which to run (default: 'cuda' if available else 'cpu')
             **kwargs: keyword arguments for the explainer :py:mod:`bex.explainers`
 
         Example:
@@ -235,7 +240,15 @@ class Benchmark:
                 bn.run("stylex")
         """
 
-        self._set_config(explainer, output_path)
+        if not device:
+            device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+        else:
+            device = torch.device(device)
+
+        self.generator = self.generator.to(device)
+        self.classifier = self.classifier.to(device)
+
+        self._set_config(explainer, output_path, device)
         explainer, logger = self._setup(explainer, **kwargs)
 
         print("Selecting optimal data subset...")
@@ -243,10 +256,10 @@ class Benchmark:
         print(f"Running explainer: {self.current_config['explainer_name']}")
 
         if logger is None:
-            metrics = {"Cardinality": [], "Esc": [], "Ecc": [], "E_causal": [], "E_trivial": []}
+            metrics = {"Cardinality (S#)": [], "SCE": [], "Non-Causal Flip": [], "Causal Flip": [], "Trivial": []}
 
-        mean = explainer.latent_mean
-        std = explainer.latent_std
+        mean = explainer.latent_mean.to(device)
+        std = explainer.latent_std.to(device)
 
         embedding_char = self.generator.model.char_embedding.weight.clone()
         embedding_font = self.generator.model.font_embedding.weight.clone()
@@ -256,7 +269,7 @@ class Benchmark:
 
         for batch in tqdm(self.val_loader):
 
-            latents, logits, x, y, categorical_att, continuous_att = self._prepare_batch(batch, explainer)
+            latents, logits, x, y, categorical_att, continuous_att = self._prepare_batch(batch, explainer, device)
             b, c = latents.size()
 
             generator = self._get_generator_callable(explainer)
@@ -290,7 +303,7 @@ class Benchmark:
             metrics = {k : np.mean(v) for k, v in metrics.items()}
             self.results.append({"explainer": self.current_config["explainer_name"], **metrics})
 
-        self._cleanup(explainer)
+        self._cleanup(explainer, logger)
 
 
     def summarize(self):

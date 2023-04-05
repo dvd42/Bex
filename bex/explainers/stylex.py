@@ -34,6 +34,7 @@ class Stylex(ExplainerBase):
     def explain_batch(self, latents, logits, images, classifier, generator):
 
         b, c = latents.size()
+        device = latents.device
         labels = logits.argmax(1)
 
         # initialize set of explanations close to the original examples (same as DICE)
@@ -45,7 +46,7 @@ class Stylex(ExplainerBase):
         n_images = b * self.num_explanations
         z_perturbed = z_perturbed.view(n_images, c)
 
-        changes = self.__find_style_changes(z_perturbed).cuda()
+        changes = self.__find_style_changes(z_perturbed).to(device)
 
         diff = self.__compute_diff(z_perturbed, changes, labels, classifier, generator)
         S, D = self.__find_att(diff)

@@ -36,17 +36,17 @@ class Dive(ExplainerBase):
         self.cache = False
 
 
-    def __read_or_write_fim(self, generator, classifier):
+    def __read_or_write_fim(self, generator, classifier, device):
 
         if "fishers" not in self.loaded_data:
             print("Caching FIM")
-            self.__write_fim(generator, classifier)
+            self.__write_fim(generator, classifier, device)
         self.__read_fim()
 
 
-    def __write_fim(self, generator, classifier):
+    def __write_fim(self, generator, classifier, device):
 
-        train_mus = (self.train_mus.cuda() - self.latent_mean.cuda()) / self.latent_std.cuda()
+        train_mus = (self.train_mus.to(device) - self.latent_mean.to(device)) / self.latent_std.to(device)
         for z in tqdm(train_mus.chunk(train_mus.shape[0] // 512)):
 
 
@@ -84,21 +84,21 @@ class Dive(ExplainerBase):
 
     def explain_batch(self, latents, logits, images, classifier, generator):
 
-
+        device = latents.device
         # TODO this is hacky
         if not self.cache:
-            self.__read_or_write_fim(generator, classifier)
+            self.__read_or_write_fim(generator, classifier, device)
             self.cache = True
 
         b, c = latents.size()
 
         predicted_labels = torch.sigmoid(logits)
 
-        predicted_labels = predicted_labels.float().cuda()
+        predicted_labels = predicted_labels.float().to(device)
 
 
         num_explanations = self.num_explanations
-        epsilon = torch.randn(b, num_explanations, c, requires_grad=True, device=latents.device)
+        epsilon = torch.randn(b, num_explanations, c, requires_grad=True, device=device)
         epsilon.data *= 0.01
         # epsilon.data *= 0
 
